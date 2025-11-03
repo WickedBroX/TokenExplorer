@@ -231,11 +231,14 @@ export default function App() {
     info,
     transfers,
     stats,
-    loading,
+    loadingInfo,
+    loadingTransfers,
     refreshing,
     error,
     refresh,
     lastUpdated,
+    chainStatuses,
+    transfersStale,
   } = useTokenData();
   const [showAllTransfers, setShowAllTransfers] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transfer | null>(null);
@@ -273,31 +276,20 @@ export default function App() {
           </div>
           <div className="max-w-2xl mx-auto w-full">
             <div className="mt-4 sm:mt-6">
-              <div className="rounded-2xl border border-blue-100 bg-white/95 px-5 py-5 text-left shadow-lg">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-blue-700 uppercase tracking-wide">Token search is coming soon</p>
-                    <h2 className="mt-1 text-xl font-semibold text-gray-900">Get notified when address and transaction lookup goes live.</h2>
-                    <p className="mt-2 text-sm text-gray-600">Tell us how you’d like to use search so we can prioritize the features that matter most.</p>
-                  </div>
-                  <div className="flex w-full flex-col gap-2 sm:w-auto">
-                    <a
-                      href="mailto:team@bazaars.io?subject=BZR%20Explorer%20Search%20Request"
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-                    >
-                      <Search className="h-4 w-4" />
-                      Request Early Access
-                    </a>
-                    <a
-                      href="https://docs.bazaars.io/roadmap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
-                    >
-                      View Roadmap
-                    </a>
-                  </div>
-                </div>
+              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/95 px-5 py-3.5 text-left shadow-lg">
+                <input
+                  type="text"
+                  placeholder="Search by Address / Txn Hash / Block (Coming Soon)"
+                  disabled
+                  className="flex-1 bg-transparent text-base md:text-lg text-gray-500 placeholder-gray-400 focus:outline-none cursor-not-allowed"
+                />
+                <button
+                  type="button"
+                  disabled
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-500 shadow-sm cursor-not-allowed"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
               </div>
             </div>
           </div>
@@ -328,10 +320,10 @@ export default function App() {
             )}
 
             {/* --- Loading, Error, and Content --- */}
-            {loading && <LoadingSpinner />}
-            {error && !loading && <ErrorMessage message={error.message} />}
-            
-            {!loading && !error && info && (
+            {loadingInfo && <LoadingSpinner />}
+            {!loadingInfo && error && <ErrorMessage message={error.message} />}
+
+            {!loadingInfo && info && (
               <div className="space-y-8 sm:space-y-10 lg:space-y-12">
                 {/* --- Stats Overview Cards --- */}
                 <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3 md:gap-6 mt-6">
@@ -399,11 +391,43 @@ export default function App() {
                             Updated {timeAgo(String(Math.floor(lastUpdated / 1000)))}
                           </span>
                         )}
+                        {transfersStale && (
+                          <span className="text-xs text-amber-600 mt-1 sm:mt-0">
+                            Showing cached data while new transfers load.
+                          </span>
+                        )}
                       </div>
                     </div>
 
+                    {chainStatuses.length > 0 && (
+                      <div className="px-4 sm:px-6 py-3 border-b border-gray-100 bg-gray-50 flex flex-wrap gap-2 text-xs sm:text-[13px] text-gray-600">
+                        {chainStatuses.map((chain) => {
+                          const isHealthy = chain.status === 'ok';
+                          const badgeClasses = isHealthy
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : 'border-amber-200 bg-amber-50 text-amber-700';
+                          return (
+                            <span
+                              key={chain.chainId}
+                              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${badgeClasses}`}
+                              title={chain.error || undefined}
+                            >
+                              <span className="font-medium">{chain.chainName}</span>
+                              <span className="text-xs font-normal">
+                                {isHealthy ? `${chain.transferCount} tx` : 'error'}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <div className="divide-y divide-gray-200">
-                      {visibleTransfers.length > 0 ? (
+                      {loadingTransfers && transfers.length === 0 ? (
+                        <div className="py-16">
+                          <LoadingSpinner />
+                        </div>
+                      ) : visibleTransfers.length > 0 ? (
                         visibleTransfers.map((tx) => (
                           <div 
                             key={tx.hash} 

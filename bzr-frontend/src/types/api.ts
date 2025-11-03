@@ -34,3 +34,18 @@ export interface TokenStats {
 export interface ApiError {
   message: string;
 }
+
+export type TransferChainStatus = {
+  chainId: number;
+  chainName: string;
+  status: 'ok' | 'error';
+  transferCount: number;
+  error?: string;
+};
+
+export interface TransfersResponse<TTransfer> {
+  data: TTransfer[];
+  chains: TransferChainStatus[];
+  timestamp: number | null;
+  stale?: boolean;
+}
