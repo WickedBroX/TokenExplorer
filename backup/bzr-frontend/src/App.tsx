@@ -8,8 +8,44 @@ import {
   StatCard, 
   ChainHolderStat
 } from './components';
-import { useTokenData } from './hooks/useTokenData';
-import type { Transfer } from './types/api';
+
+// --- Types ---
+interface TokenInfo {
+  tokenName: string;
+  tokenSymbol: string;
+  tokenDecimal: number;
+  formattedTotalSupply: string;
+}
+
+interface Transfer {
+  hash: string;
+  blockNumber: string;
+  timeStamp: string;
+  from: string;
+  to: string;
+  value: string;
+  tokenSymbol: string;
+  tokenDecimal: string;
+  chainName: string;
+  chainId: number;
+}
+
+interface ChainStat {
+  chainName: string;
+  chainId: number;
+  holderCount: number;
+  isLoading?: boolean;
+  error?: string;
+}
+
+interface TokenStats {
+  totalHolders: number | string;
+  chains: ChainStat[];
+}
+
+type ApiError = {
+  message: string;
+};
 
 type ActiveTab = 'transfers' | 'info' | 'analytics';
 
@@ -39,55 +75,41 @@ const truncateHash = (hash: string, start = 6, end = 4) => {
   return `${hash.substring(0, start)}...${hash.substring(hash.length - end)}`;
 };
 
-const formatValue = (value: string, decimals: number): string => {
+const formatValue = (value: string, decimals: string | number): string => {
   try {
-  const numValue = BigInt(value);
-  const decimalUnits = Number.isFinite(decimals) ? Math.max(Math.floor(decimals), 0) : 0;
-    const divisor = BigInt(10) ** BigInt(decimalUnits);
+    const numDecimals = Number(decimals);
+    const numValue = BigInt(value);
+    const divisor = BigInt(10 ** numDecimals);
+    
+    const integerPart = (numValue / divisor).toString();
+    const fractionalPart = (numValue % divisor).toString().padStart(numDecimals, '0').substring(0, 4);
 
-    if (divisor === BigInt(0)) {
-      return '0';
+    if (fractionalPart === "0000") {
+      return integerPart;
     }
-
-    const integerPart = numValue / divisor;
-    const remainder = numValue % divisor;
-
-    if (remainder === BigInt(0)) {
-      return integerPart.toString();
-    }
-
-    const remainderString = remainder.toString().padStart(decimalUnits, '0');
-    const fractionalPrecision = remainderString.slice(0, Math.max(4, 1)).replace(/0+$/, '');
-
-    return `${integerPart.toString()}.${fractionalPrecision || '0'}`;
+    
+    return `${integerPart}.${fractionalPart}`;
   } catch (e) {
-    console.error('Error formatting value:', e);
-    return '0';
+    console.error("Error formatting value:", e);
+    return "0";
   }
 };
 
 const timeAgo = (timestamp: string): string => {
-  const parsed = Number(timestamp);
-  if (!Number.isFinite(parsed)) {
-    return 'Unknown time';
-  }
-
   const now = Date.now();
-  const seconds = Math.floor(now / 1000) - parsed;
+  const seconds = Math.floor(now / 1000) - Number(timestamp);
 
-  const safeSeconds = Math.max(seconds, 0);
-
-  let interval = safeSeconds / 31536000;
+  let interval = seconds / 31536000;
   if (interval > 1) return Math.floor(interval) + " years ago";
-  interval = safeSeconds / 2592000;
+  interval = seconds / 2592000;
   if (interval > 1) return Math.floor(interval) + " months ago";
-  interval = safeSeconds / 86400;
+  interval = seconds / 86400;
   if (interval > 1) return Math.floor(interval) + " days ago";
-  interval = safeSeconds / 3600;
+  interval = seconds / 3600;
   if (interval > 1) return Math.floor(interval) + " hours ago";
-  interval = safeSeconds / 60;
+  interval = seconds / 60;
   if (interval > 1) return Math.floor(interval) + " minutes ago";
-  return Math.floor(safeSeconds) + " seconds ago";
+  return Math.floor(seconds) + " seconds ago";
 };
 
 // --- Modal Component ---
@@ -162,18 +184,12 @@ const DetailRow: React.FC<{
   link?: string;
   copyable?: boolean;
 }> = ({ label, value, link, copyable }) => {
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopyStatus('success');
-    } catch (err) {
-      console.error('Clipboard copy failed:', err);
-      setCopyStatus('error');
-    }
-
-    setTimeout(() => setCopyStatus('idle'), 2000);
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -186,25 +202,24 @@ const DetailRow: React.FC<{
               href={link}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors break-all sm:text-right font-mono"
+              className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors break-all sm:text-right"
             >
               <span>{value.length > 42 ? truncateHash(value, 10, 10) : value}</span>
               <ExternalLink className="w-4 h-4" />
             </a>
           ) : (
-            <span className="text-gray-900 break-all sm:text-right font-mono">
+            <span className="text-gray-900 break-all sm:text-right">
               {value.length > 42 ? truncateHash(value, 10, 10) : value}
             </span>
           )}
           {copyable && (
             <button
               onClick={handleCopy}
-              aria-label={`Copy ${label}`}
               className="self-start sm:self-center text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-200"
               title="Copy to clipboard"
             >
-              {copyStatus === 'success' ? (
-                <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {copied ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               ) : (
@@ -216,10 +231,6 @@ const DetailRow: React.FC<{
           )}
         </div>
       </div>
-      <span className="sr-only" role="status" aria-live="polite">
-        {copyStatus === 'success' && `${label} copied to clipboard.`}
-        {copyStatus === 'error' && `Unable to copy ${label}.`}
-      </span>
     </div>
   );
 };
@@ -227,31 +238,103 @@ const DetailRow: React.FC<{
 // --- Main App Component ---
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('transfers');
-  const {
-    info,
-    transfers,
-    stats,
-    loading,
-    refreshing,
-    error,
-    refresh,
-    lastUpdated,
-  } = useTokenData();
+  const [info, setInfo] = useState<TokenInfo | null>(null);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [stats, setStats] = useState<TokenStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
   const [showAllTransfers, setShowAllTransfers] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transfer | null>(null);
-  const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!upgradeMessage) return;
-
-    const timer = window.setTimeout(() => setUpgradeMessage(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [upgradeMessage]);
 
   const retryChain = async (_chainId: number) => {
-    setUpgradeMessage('Analytics and holder insights are part of the Pro plan. Contact us to unlock.');
+    // This is a pro feature, show upgrade message
+    alert('This feature requires a pro plan subscription');
   };
-  const visibleTransfers = showAllTransfers ? transfers : transfers.slice(0, 15);
+
+  const fetchData = async (forceRefresh = false) => {
+    if (!forceRefresh && loading) return;
+    
+    setLoading(true);
+    setError(null);
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout')), 10000)
+    );
+
+    // If we're refreshing stats, mark all chains as loading
+    if (stats && forceRefresh) {
+      setStats(prev => prev ? {
+        ...prev,
+        chains: prev.chains.map(chain => ({
+          ...chain,
+          isLoading: true,
+          error: undefined
+        }))
+      } : null);
+    }
+
+    try {
+      // Fetch basic data in parallel with timeout
+      const responses = await Promise.race([
+        Promise.all([
+          fetch('/api/info'),
+          fetch('/api/transfers')
+        ]),
+        timeoutPromise
+      ]) as [Response, Response];
+
+      const [infoRes, transfersRes] = responses;
+
+      try {
+        // Handle info data
+        const infoData = await infoRes.json();
+        if (infoRes.ok) {
+          setInfo(infoData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch info:', err);
+      }
+
+      try {
+        // Handle transfers data
+        const transfersData = await transfersRes.json();
+        if (transfersRes.ok) {
+          setTransfers(transfersData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch transfers:', err);
+      }
+
+      try {
+        // Stats is a pro feature, mock the data for now
+        setStats({
+          totalHolders: "Pro Feature",
+          chains: contractLinks.map(link => ({
+            chainName: link.name,
+            chainId: 0,
+            holderCount: 0,
+            isLoading: false,
+            error: "Pro Feature Required"
+          }))
+        });
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
+      }
+
+    } catch (err: any) {
+      setError({ message: err.message || 'Some data could not be loaded' });
+    } finally {
+      // Always set loading to false
+      setLoading(false);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchData();
+  }, []); // Remove fetchData from dependencies
+
+  const visibleTransfers = showAllTransfers ? transfers : (transfers || []).slice(0, 15);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-['Inter']">
@@ -273,31 +356,20 @@ export default function App() {
           </div>
           <div className="max-w-2xl mx-auto w-full">
             <div className="mt-4 sm:mt-6">
-              <div className="rounded-2xl border border-blue-100 bg-white/95 px-5 py-5 text-left shadow-lg">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-blue-700 uppercase tracking-wide">Token search is coming soon</p>
-                    <h2 className="mt-1 text-xl font-semibold text-gray-900">Get notified when address and transaction lookup goes live.</h2>
-                    <p className="mt-2 text-sm text-gray-600">Tell us how you’d like to use search so we can prioritize the features that matter most.</p>
-                  </div>
-                  <div className="flex w-full flex-col gap-2 sm:w-auto">
-                    <a
-                      href="mailto:team@bazaars.io?subject=BZR%20Explorer%20Search%20Request"
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-                    >
-                      <Search className="h-4 w-4" />
-                      Request Early Access
-                    </a>
-                    <a
-                      href="https://docs.bazaars.io/roadmap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
-                    >
-                      View Roadmap
-                    </a>
-                  </div>
-                </div>
+              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/95 px-5 py-3.5 text-left shadow-lg">
+                <input
+                  type="text"
+                  placeholder="Search by Address / Txn Hash / Block (Coming Soon)"
+                  disabled
+                  className="flex-1 bg-transparent text-base md:text-lg text-gray-500 placeholder-gray-400 focus:outline-none cursor-not-allowed"
+                />
+                <button
+                  type="button"
+                  disabled
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-500 shadow-sm cursor-not-allowed"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
               </div>
             </div>
           </div>
@@ -307,26 +379,6 @@ export default function App() {
       <div className="pb-16">
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 sm:-mt-12 lg:-mt-14">
           <div className="space-y-6 sm:space-y-8 lg:space-y-12">
-            {upgradeMessage && (
-              <div
-                className="rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3 text-sm text-blue-900 shadow-sm"
-                role="alert"
-                aria-live="assertive"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span>{upgradeMessage}</span>
-                  <button
-                    type="button"
-                    onClick={() => setUpgradeMessage(null)}
-                    className="text-blue-600 hover:text-blue-800"
-                    aria-label="Dismiss upgrade notice"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* --- Loading, Error, and Content --- */}
             {loading && <LoadingSpinner />}
             {error && !loading && <ErrorMessage message={error.message} />}
@@ -383,23 +435,15 @@ export default function App() {
                   <div className="bg-white shadow-xl rounded-lg overflow-hidden">
                     <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Latest Aggregated Transfers</h3>
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                        <button
-                          onClick={refresh}
-                          disabled={refreshing}
-                          className={`inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-600 transition-all hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70`}
-                        >
-                          <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          {refreshing ? 'Refreshing...' : 'Refresh'}
-                        </button>
-                        {lastUpdated && (
-                          <span className="text-xs text-gray-500 mt-2 sm:mt-0">
-                            Updated {timeAgo(String(Math.floor(lastUpdated / 1000)))}
-                          </span>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => fetchData(true)}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-600 transition-all hover:bg-blue-100"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh
+                      </button>
                     </div>
 
                     <div className="divide-y divide-gray-200">
@@ -572,7 +616,7 @@ export default function App() {
                         <div className="flex justify-between items-center mb-4">
                           <h4 className="text-md font-semibold text-gray-900">Holders by Chain</h4>
                           <button
-                            onClick={() => setUpgradeMessage('Analytics and holder insights are part of the Pro plan. Contact us to unlock.')}
+                            onClick={() => alert('This feature requires a pro subscription')}
                             className="flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors px-3 py-1 rounded-lg hover:bg-blue-50"
                           >
                             <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
