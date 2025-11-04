@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
-import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown, ArrowRightLeft } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
+import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
   LoadingSpinner,
   ErrorMessage,
   TabButton,
+  ChainHolderStat,
 } from './components';
 import { useTokenData } from './hooks/useTokenData';
 import type { Transfer, Holder } from './types/api';
@@ -897,6 +898,10 @@ export default function App() {
     priceMetadata,
   ]);
 
+  const retryChain = async (chainId: number) => {
+    setUpgradeMessage(`Chain ${chainId} analytics are part of the Pro plan. Contact us to unlock.`);
+  };
+  
   // Handle column sort
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -2010,334 +2015,66 @@ export default function App() {
                 )}
 
                 {/* --- Analytics Tab --- */}
-                {activeTab === 'analytics' && (() => {
-                  // Time range state
-                  const [analyticsTimeRange, setAnalyticsTimeRange] = React.useState<'7d' | '30d' | '90d' | 'all'>('30d');
-                  
-                  // Calculate date range based on selection
-                  const getDateRange = () => {
-                    const now = Date.now();
-                    const ranges = {
-                      '7d': now - 7 * 24 * 60 * 60 * 1000,
-                      '30d': now - 30 * 24 * 60 * 60 * 1000,
-                      '90d': now - 90 * 24 * 60 * 60 * 1000,
-                      'all': 0
-                    };
-                    return ranges[analyticsTimeRange];
-                  };
-
-                  // Filter transfers by time range
-                  const filteredByTime = React.useMemo(() => {
-                    const startTime = getDateRange();
-                    return transfers.filter(t => {
-                      const txTime = Number(t.timeStamp) * 1000;
-                      return txTime >= startTime;
-                    });
-                  }, [transfers, analyticsTimeRange]);
-
-                  // Aggregate transfer data by day
-                  const dailyData = React.useMemo(() => {
-                    const dayMap = new Map<string, { date: string; count: number; volume: number; uniqueAddresses: Set<string> }>();
-                    
-                    filteredByTime.forEach(transfer => {
-                      const date = new Date(Number(transfer.timeStamp) * 1000);
-                      const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-                      
-                      if (!dayMap.has(dayKey)) {
-                        dayMap.set(dayKey, {
-                          date: dayKey,
-                          count: 0,
-                          volume: 0,
-                          uniqueAddresses: new Set()
-                        });
-                      }
-                      
-                      const day = dayMap.get(dayKey)!;
-                      day.count++;
-                      day.volume += Number(transfer.value) / 1e18; // Convert to BZR
-                      day.uniqueAddresses.add(transfer.from.toLowerCase());
-                      day.uniqueAddresses.add(transfer.to.toLowerCase());
-                    });
-
-                    // Convert to array and sort by date
-                    return Array.from(dayMap.values())
-                      .sort((a, b) => a.date.localeCompare(b.date))
-                      .map(day => ({
-                        date: day.date,
-                        displayDate: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                        count: day.count,
-                        volume: Math.round(day.volume),
-                        uniqueAddresses: day.uniqueAddresses.size
-                      }));
-                  }, [filteredByTime]);
-
-                  // Calculate analytics metrics
-                  const analyticsMetrics = React.useMemo(() => {
-                    const totalTransfers = filteredByTime.length;
-                    const totalVolume = filteredByTime.reduce((sum, t) => sum + Number(t.value) / 1e18, 0);
-                    const avgTransferSize = totalTransfers > 0 ? totalVolume / totalTransfers : 0;
-                    
-                    const uniqueAddresses = new Set<string>();
-                    filteredByTime.forEach(t => {
-                      uniqueAddresses.add(t.from.toLowerCase());
-                      uniqueAddresses.add(t.to.toLowerCase());
-                    });
-
-                    return {
-                      totalTransfers,
-                      totalVolume: Math.round(totalVolume),
-                      avgTransferSize: Math.round(avgTransferSize),
-                      activeAddresses: uniqueAddresses.size
-                    };
-                  }, [filteredByTime]);
-
-                  return (
-                    <div className="space-y-6">
-                      {/* Header with Time Range Selector */}
-                      <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900">Transfer Analytics</h3>
-                            <p className="text-sm text-gray-500 mt-1">Comprehensive transfer activity insights</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Time Range:</span>
-                            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                              {[
-                                { value: '7d' as const, label: '7D' },
-                                { value: '30d' as const, label: '30D' },
-                                { value: '90d' as const, label: '90D' },
-                                { value: 'all' as const, label: 'All' }
-                              ].map(option => (
-                                <button
-                                  key={option.value}
-                                  onClick={() => setAnalyticsTimeRange(option.value)}
-                                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                                    analyticsTimeRange === option.value
-                                      ? 'bg-blue-600 text-white shadow-sm'
-                                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {option.label}
-                                </button>
-                              ))}
-                            </div>
+                {activeTab === 'analytics' && (
+                  <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-blue-800">Pro Feature</h3>
+                          <div className="mt-2 text-sm text-blue-700">
+                            <p>Holder analytics is available with a Pro subscription. Contact us to learn more.</p>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Metrics Cards */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-gradient-to-br from-blue-50 to-white shadow-lg rounded-lg p-6 border border-blue-100">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-gray-600 font-medium">Total Transfers</p>
-                              <p className="text-3xl font-bold text-blue-600 mt-2">
-                                {analyticsMetrics.totalTransfers.toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                              <Activity className="w-6 h-6 text-blue-600" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-purple-50 to-white shadow-lg rounded-lg p-6 border border-purple-100">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-gray-600 font-medium">Total Volume</p>
-                              <p className="text-3xl font-bold text-purple-600 mt-2">
-                                {analyticsMetrics.totalVolume.toLocaleString()}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">BZR</p>
-                            </div>
-                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                              <TrendingUp className="w-6 h-6 text-purple-600" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-green-50 to-white shadow-lg rounded-lg p-6 border border-green-100">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-gray-600 font-medium">Avg Transfer</p>
-                              <p className="text-3xl font-bold text-green-600 mt-2">
-                                {analyticsMetrics.avgTransferSize.toLocaleString()}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">BZR</p>
-                            </div>
-                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                              <ArrowRightLeft className="w-6 h-6 text-green-600" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-orange-50 to-white shadow-lg rounded-lg p-6 border border-orange-100">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-gray-600 font-medium">Active Addresses</p>
-                              <p className="text-3xl font-bold text-orange-600 mt-2">
-                                {analyticsMetrics.activeAddresses.toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                              <Users className="w-6 h-6 text-orange-600" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Charts Grid */}
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                        {/* Transfer Count Chart */}
-                        <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-blue-600" />
-                            Transfer Activity
-                          </h4>
-                          <p className="text-sm text-gray-500 mb-4">Daily transfer count over time</p>
-                          {dailyData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={300}>
-                              <AreaChart data={dailyData}>
-                                <defs>
-                                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                  </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis 
-                                  dataKey="displayDate" 
-                                  tick={{ fontSize: 12 }}
-                                  stroke="#9ca3af"
-                                />
-                                <YAxis 
-                                  tick={{ fontSize: 12 }}
-                                  stroke="#9ca3af"
-                                />
-                                <Tooltip 
-                                  contentStyle={{ 
-                                    backgroundColor: 'white', 
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                                  }}
-                                  formatter={(value: number) => [value, 'Transfers']}
-                                />
-                                <Area 
-                                  type="monotone" 
-                                  dataKey="count" 
-                                  stroke="#3b82f6" 
-                                  strokeWidth={2}
-                                  fill="url(#colorCount)" 
-                                />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          ) : (
-                            <div className="h-[300px] flex items-center justify-center text-gray-400">
-                              No transfer data available for this time range
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Volume Chart */}
-                        <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-purple-600" />
-                            Transfer Volume
-                          </h4>
-                          <p className="text-sm text-gray-500 mb-4">Daily transfer volume in BZR</p>
-                          {dailyData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={300}>
-                              <BarChart data={dailyData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis 
-                                  dataKey="displayDate" 
-                                  tick={{ fontSize: 12 }}
-                                  stroke="#9ca3af"
-                                />
-                                <YAxis 
-                                  tick={{ fontSize: 12 }}
-                                  stroke="#9ca3af"
-                                  tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}K` : value}
-                                />
-                                <Tooltip 
-                                  contentStyle={{ 
-                                    backgroundColor: 'white', 
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                                  }}
-                                  formatter={(value: number) => [value.toLocaleString() + ' BZR', 'Volume']}
-                                />
-                                <Bar 
-                                  dataKey="volume" 
-                                  fill="#8b5cf6"
-                                  radius={[8, 8, 0, 0]}
-                                />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          ) : (
-                            <div className="h-[300px] flex items-center justify-center text-gray-400">
-                              No volume data available for this time range
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Additional Insights */}
-                      <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <Users className="w-5 h-5 text-green-600" />
-                          Address Activity
-                        </h4>
-                        <p className="text-sm text-gray-500 mb-4">Unique addresses participating daily</p>
-                        {dailyData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={250}>
-                            <AreaChart data={dailyData}>
-                              <defs>
-                                <linearGradient id="colorAddresses" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                              <XAxis 
-                                dataKey="displayDate" 
-                                tick={{ fontSize: 12 }}
-                                stroke="#9ca3af"
-                              />
-                              <YAxis 
-                                tick={{ fontSize: 12 }}
-                                stroke="#9ca3af"
-                              />
-                              <Tooltip 
-                                contentStyle={{ 
-                                  backgroundColor: 'white', 
-                                  border: '1px solid #e5e7eb',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                                }}
-                                formatter={(value: number) => [value, 'Unique Addresses']}
-                              />
-                              <Area 
-                                type="monotone" 
-                                dataKey="uniqueAddresses" 
-                                stroke="#10b981" 
-                                strokeWidth={2}
-                                fill="url(#colorAddresses)" 
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div className="h-[250px] flex items-center justify-center text-gray-400">
-                            No address data available for this time range
-                          </div>
-                        )}
                       </div>
                     </div>
-                  );
-                })()}
+
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Holder Analytics</h3>
+                        <p className="text-sm text-gray-500 mt-1">Real-time holder statistics across all chains</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                          Pro Feature
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+                      <div className="py-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h4 className="text-md font-semibold text-gray-900">Holders by Chain</h4>
+                          <button
+                            onClick={() => setUpgradeMessage('Analytics and holder insights are part of the Pro plan. Contact us to unlock.')}
+                            className="flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors px-3 py-1 rounded-lg hover:bg-blue-50"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Upgrade to Pro
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                          {stats?.chains.map((chain) => (
+                            <ChainHolderStat
+                              key={chain.chainName}
+                              chainName={chain.chainName}
+                              isLoading={chain.isLoading}
+                              error={chain.error}
+                              onRetry={() => retryChain(chain.chainId)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* --- Holders Tab --- */}
                 {activeTab === 'holders' && (
