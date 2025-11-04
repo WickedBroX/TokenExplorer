@@ -49,20 +49,3 @@ export interface TransfersResponse<TTransfer> {
   timestamp: number | null;
   stale?: boolean;
 }
-
-export interface TokenPriceResponse {
-  available: boolean;
-  priceUsd: number | null;
-  priceUsdRaw: string | null;
-  source: string;
-  timestamp: number;
-  proRequired: boolean;
-  message?: string;
-}
-
-export interface FinalityResponse {
-  blockNumber: number | null;
-  blockNumberHex: string | null;
-  timestamp: number;
-  source: string;
-}

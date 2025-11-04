@@ -6,13 +6,24 @@ import type {
   Transfer,
   TransferChainStatus,
   TransfersResponse,
-  TokenPriceResponse,
-  FinalityResponse,
 } from '../types/api';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const STALE_RETRY_DELAY_MS = 1_500;
 const TRANSFERS_STORAGE_KEY = 'bzr:lastTransfers';
+
+const contractLinks = [
+  { name: 'Ethereum', url: 'https://etherscan.io/address/' },
+  { name: 'Polygon', url: 'https://polygonscan.com/address/' },
+  { name: 'BSC', url: 'https://bscscan.com/address/' },
+  { name: 'Arbitrum', url: 'https://arbiscan.io/address/' },
+  { name: 'Optimism', url: 'https://optimistic.etherscan.io/address/' },
+  { name: 'Avalanche', url: 'https://subnets.avax.network/c-chain/address/' },
+  { name: 'Base', url: 'https://basescan.org/address/' },
+  { name: 'zkSync', url: 'https://explorer.zksync.io/address/' },
+  { name: 'Mantle', url: 'https://mantlescan.xyz/address/' },
+  { name: 'Cronos', url: 'https://cronoscan.com/address/' },
+];
 
 type FetchMode = 'initial' | 'refresh' | 'background';
 
@@ -33,14 +44,6 @@ type UseTokenDataResult = {
   lastUpdated: number | null;
   chainStatuses: TransferChainStatus[];
   transfersStale: boolean;
-  tokenPrice: TokenPriceResponse | null;
-  loadingTokenPrice: boolean;
-  tokenPriceError: ApiError | null;
-  finality: FinalityResponse | null;
-  loadingFinality: boolean;
-  finalityError: ApiError | null;
-  loadingStats: boolean;
-  statsError: ApiError | null;
 };
 
 type RawTransfer = Omit<Transfer, 'tokenDecimal'> & {
@@ -111,14 +114,6 @@ export const useTokenData = (): UseTokenDataResult => {
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [chainStatuses, setChainStatuses] = useState<TransferChainStatus[]>([]);
   const [transfersStale, setTransfersStale] = useState(false);
-  const [tokenPrice, setTokenPrice] = useState<TokenPriceResponse | null>(null);
-  const [loadingTokenPrice, setLoadingTokenPrice] = useState(false);
-  const [tokenPriceError, setTokenPriceError] = useState<ApiError | null>(null);
-  const [finality, setFinality] = useState<FinalityResponse | null>(null);
-  const [loadingFinality, setLoadingFinality] = useState(false);
-  const [finalityError, setFinalityError] = useState<ApiError | null>(null);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const [statsError, setStatsError] = useState<ApiError | null>(null);
 
   const infoLoadingRef = useRef(loadingInfo);
   const transfersLoadingRef = useRef(loadingTransfers);
@@ -172,6 +167,19 @@ export const useTokenData = (): UseTokenDataResult => {
     };
   }, []);
 
+  const assignProStats = useCallback(() => {
+    setStats({
+      totalHolders: 'Pro Feature',
+      chains: contractLinks.map((link) => ({
+        chainName: link.name,
+        chainId: 0,
+        holderCount: 0,
+        isLoading: false,
+        error: 'Pro Feature Required',
+      })),
+    });
+  }, []);
+
   const fetchData = useCallback(async function fetchDataInner({ mode = 'initial', force = false }: FetchOptions = {}) {
     if (!mountedRef.current) return;
 
@@ -210,9 +218,6 @@ export const useTokenData = (): UseTokenDataResult => {
     }
 
     const shouldFetchInfo = isInitial;
-    const shouldFetchStats = isInitial || isRefresh || force;
-    const shouldFetchTokenPrice = !isBackground;
-    const shouldFetchFinality = !isBackground;
 
     const infoPromise = shouldFetchInfo
       ? (async () => {
@@ -235,27 +240,6 @@ export const useTokenData = (): UseTokenDataResult => {
         })()
       : Promise.resolve();
 
-    if (shouldFetchStats) {
-      setLoadingStats(true);
-      if (!isBackground) {
-        setStatsError(null);
-      }
-    }
-
-    if (shouldFetchTokenPrice) {
-      setLoadingTokenPrice(true);
-      if (!isBackground) {
-        setTokenPriceError(null);
-      }
-    }
-
-    if (shouldFetchFinality) {
-      setLoadingFinality(true);
-      if (!isBackground) {
-        setFinalityError(null);
-      }
-    }
-
     const transfersPromise = (async () => {
       try {
         const transfersUrl = force ? '/api/transfers?force=true' : '/api/transfers';
@@ -272,6 +256,7 @@ export const useTokenData = (): UseTokenDataResult => {
           : Date.now();
         setLastUpdated(timestamp);
         setTransfersStale(Boolean(transfersPayload.stale));
+        assignProStats();
         setTransfersLoadingState(false);
 
         persistTransfers(normalized, {
@@ -309,74 +294,8 @@ export const useTokenData = (): UseTokenDataResult => {
       }
     })();
 
-    const statsPromise = shouldFetchStats
-      ? (async () => {
-          try {
-            const statsResponse = await fetch('/api/stats', { signal: controller.signal });
-            const statsPayload = await parseJsonResponse<TokenStats>(statsResponse);
-            if (!mountedRef.current) return;
-            setStats(statsPayload);
-          } catch (err) {
-            if (!mountedRef.current) return;
-            if ((err as DOMException).name === 'AbortError') {
-              return;
-            }
-            console.error('Failed to load stats:', err);
-            setStatsError({ message: (err as Error).message || 'Failed to load holder stats' });
-          } finally {
-            if (mountedRef.current) {
-              setLoadingStats(false);
-            }
-          }
-        })()
-      : Promise.resolve();
-
-    const tokenPricePromise = shouldFetchTokenPrice
-      ? (async () => {
-          try {
-            const priceResponse = await fetch('/api/token-price', { signal: controller.signal });
-            const pricePayload = await parseJsonResponse<TokenPriceResponse>(priceResponse);
-            if (!mountedRef.current) return;
-            setTokenPrice(pricePayload);
-          } catch (err) {
-            if (!mountedRef.current) return;
-            if ((err as DOMException).name === 'AbortError') {
-              return;
-            }
-            console.error('Failed to load token price:', err);
-            setTokenPriceError({ message: (err as Error).message || 'Failed to load token price' });
-          } finally {
-            if (mountedRef.current) {
-              setLoadingTokenPrice(false);
-            }
-          }
-        })()
-      : Promise.resolve();
-
-    const finalityPromise = shouldFetchFinality
-      ? (async () => {
-          try {
-            const finalityResponse = await fetch('/api/finality', { signal: controller.signal });
-            const finalityPayload = await parseJsonResponse<FinalityResponse>(finalityResponse);
-            if (!mountedRef.current) return;
-            setFinality(finalityPayload);
-          } catch (err) {
-            if (!mountedRef.current) return;
-            if ((err as DOMException).name === 'AbortError') {
-              return;
-            }
-            console.error('Failed to load finalized block:', err);
-            setFinalityError({ message: (err as Error).message || 'Failed to load finalized block' });
-          } finally {
-            if (mountedRef.current) {
-              setLoadingFinality(false);
-            }
-          }
-        })()
-      : Promise.resolve();
-
     try {
-      await Promise.allSettled([infoPromise, transfersPromise, statsPromise, tokenPricePromise, finalityPromise]);
+      await Promise.allSettled([infoPromise, transfersPromise]);
     } finally {
       window.clearTimeout(timeoutId);
       if (mountedRef.current) {
@@ -386,7 +305,7 @@ export const useTokenData = (): UseTokenDataResult => {
         }
       }
     }
-  }, [setInfoLoadingState, setTransfersLoadingState, setRefreshing, transfers.length]);
+  }, [assignProStats, setInfoLoadingState, setTransfersLoadingState, setRefreshing, transfers.length]);
 
   useEffect(() => {
     fetchData({ mode: 'initial' });
@@ -408,13 +327,5 @@ export const useTokenData = (): UseTokenDataResult => {
     lastUpdated,
     chainStatuses,
     transfersStale,
-    tokenPrice,
-    loadingTokenPrice,
-    tokenPriceError,
-    finality,
-    loadingFinality,
-    finalityError,
-    loadingStats,
-    statsError,
   };
 };

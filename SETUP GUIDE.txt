@@ -1,0 +1,128 @@
+Understood. The file generation has failed twice. This is a system-level error. I will output the complete SOP directly as requested.
+Here is the full guide.
+
+
+Standard Operating Procedure: BZR Explorer Server Migration
+
+Objective: To document the end-to-end process for migrating the bzr-explorer application (backend and frontend) to a new, clean Ubuntu 22.04 server.
+
+
+Phase 1: Local Code Preparation (GitHub)
+
+This project consists of two separate code repositories. Before migration, ensure all final, working code is pushed to the main branch of both repositories.
+	1	Backend Repository (bzr-backend):
+	◦	Purpose: Runs the Node.js/Express API server.
+	◦	Critical Files: server.js, package.json.
+	◦	Git Ignore: The .gitignore file must exclude node_modules/ and .env. The .env file, containing all API keys, will be created manually on the new server for security.
+	2	Frontend Repository (bzr-frontend):
+	◦	Purpose: Runs the React/Vite UI.
+	◦	Critical Files: src/App.tsx, tailwind.config.cjs, vite.config.ts, package.json.
+	◦	Git Ignore: The .gitignore file must exclude node_modules/, dist/, and .env files.
+
+
+Phase 2: New Server Provisioning (Ubuntu 22.04)
+
+On your new, clean server:
+	1	Update & Install System Packages: Bash  sudo apt update && sudo apt upgrade -y
+	2	sudo apt install -y nginx git curl build-essential
+	3	   
+	4	Install Node.js (via NVM): This ensures the correct Node version and avoids permission issues. Bash  # Download and run the NVM installer
+	5	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+	6	
+	7	# Activate NVM in your current session
+	8	export NVM_DIR="$HOME/.nvm"
+	9	[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+	10	
+	11	# Install and set Node.js v20 as default
+	12	nvm install 20
+	13	nvm use 20
+	14	nvm alias default 20
+	15	   
+	16	Install PM2 (Process Manager): This will keep the backend server running permanently. Bash  npm install -g pm2
+	17	   
+	18	Create Application Directories: This is where the code will live. Bash  sudo mkdir -p /var/www/bzr-backend
+	19	sudo mkdir -p /var/www/bzr-frontend
+	20	sudo chown -R $USER:$USER /var/www/
+	21	   
+
+
+Phase 3: Backend Deployment (bzr-backend)
+
+	1	Clone the Backend Repository: Bash  git clone [YOUR_BACKEND_REPO_URL] /var/www/bzr-backend
+	2	cd /var/www/bzr-backend
+	3	   
+	4	Install Dependencies: Bash  npm install
+	5	   
+	6	Create the Environment File: This is the most critical security step. Bash  nano .env
+	7	    Paste the following content into the file, adding your secret keys: Ini, TOML  ETHERSCAN_V2_API_KEY=[YOUR_SINGLE_ETHERSCAN_KEY]
+	8	BZR_TOKEN_ADDRESS=0x85Cb098bdcD3Ca929d2cD18Fc7A2669fF0362242
+	9	ADMIN_PASSWORD=[MAKE_A_NEW_STRONG_PASSWORD]
+	10	   
+	11	Start the Backend Server: Bash  pm2 start server.js --name "bzr-backend"
+	12	   
+	13	Verify Backend Status: Bash  pm2 logs bzr-backend
+	14	    You should see the log message: BZR Backend server listening on http://localhost:3001
+
+
+Phase 4: Frontend Deployment (bzr-frontend)
+
+This phase is performed on your local development machine, not the server.
+	1	Build the React Application (Local Machine): Navigate to your bzr-frontend project folder on your local computer. Bash  # 1. Ensure all packages are installed
+	2	npm install
+	3	
+	4	# 2. Run the production build
+	5	npm run build
+	6	    This creates a new, optimized dist/ folder in your bzr-frontend project.
+	7	Deploy Files to Server (Local Machine): Use rsync to securely and efficiently copy the build files to the new server. This is superior to scp. Bash  # Syntax: rsync -flags ./local-source/ user@server:/remote-destination/
+	8	rsync -avz --delete ./dist/ root@[NEW_SERVER_IP]:/var/www/bzr-frontend/
+	9	   
+
+
+Phase 5: Nginx Configuration (On New Server)
+
+This final step configures the Nginx web server to serve your frontend and proxy your backend.
+	1	Create Nginx Config File: Bash  sudo nano /etc/nginx/sites-available/bzr-explorer
+	2	   
+	3	Paste the Final Configuration: This is the complete, working configuration. Nginx  server {
+	4	    listen 80;
+	5	    server_name [NEW_SERVER_IP_OR_DOMAIN];
+	6	
+	7	    # --- Frontend ---
+	8	    # Serves the static files from the 'dist' folder
+	9	    location / {
+	10	        root /var/www/bzr-frontend;
+	11	        try_files $uri /index.html;
+	12	    }
+	13	
+	14	    # --- Backend Proxy ---
+	15	    # Forwards all /api/ requests to the backend server
+	16	    location /api/ {
+	17	        proxy_pass http://localhost:3001;
+	18	        proxy_http_version 1.1;
+	19	        proxy_set_header Upgrade $http_upgrade;
+	20	        proxy_set_header Connection 'upgrade';
+	21	        proxy_set_header Host $host;
+	22	        proxy_cache_bypass $http_upgrade;
+	23	    }
+	24	}
+	25	    Save and exit the file.
+	26	Enable the New Site: This creates a symbolic link from sites-available to sites-enabled. Bash  # 1. Remove the default config (if it exists)
+	27	sudo rm /etc/nginx/sites-enabled/default
+	28	
+	29	# 2. Link your new config
+	30	sudo ln -s /etc/nginx/sites-available/bzr-explorer /etc/nginx/sites-enabled/
+	31	   
+	32	Test and Restart Nginx: Bash  # 1. Test for syntax errors
+	33	sudo nginx -t
+	34	# You MUST see "syntax is ok" and "test is successful"
+	35	
+	36	# 2. Restart Nginx to apply changes
+	37	sudo systemctl restart nginx
+	38	   
+
+
+Phase 6: Final Verification
+
+	1	Open your web browser and navigate to http://[NEW_SERVER_IP].
+	2	The BZR Token Explorer should load.
+	3	Perform an "Empty Cache and Hard Reload" to ensure you are not viewing a cached version of the old server.

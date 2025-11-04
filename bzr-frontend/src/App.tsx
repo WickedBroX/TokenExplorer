@@ -1,11 +1,10 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search } from 'lucide-react';
+import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity } from 'lucide-react';
 import { 
   LoadingSpinner, 
   ErrorMessage, 
   TabButton, 
-  StatCard, 
   ChainHolderStat
 } from './components';
 import { useTokenData } from './hooks/useTokenData';
@@ -239,10 +238,17 @@ export default function App() {
     lastUpdated,
     chainStatuses,
     transfersStale,
+    tokenPrice,
+    loadingTokenPrice,
+    tokenPriceError,
+    loadingStats,
+    statsError,
   } = useTokenData();
   const [showAllTransfers, setShowAllTransfers] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transfer | null>(null);
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (!upgradeMessage) return;
@@ -250,6 +256,136 @@ export default function App() {
     const timer = window.setTimeout(() => setUpgradeMessage(null), 4000);
     return () => window.clearTimeout(timer);
   }, [upgradeMessage]);
+
+  const navItems = React.useMemo(() => (
+    [
+      { label: 'Transfers', tab: 'transfers' as const },
+      { label: 'Info & Contract', tab: 'info' as const },
+      { label: 'Analytics & Holders', tab: 'analytics' as const },
+    ]
+  ), []);
+
+  const handleNavClick = React.useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    setIsNavOpen(false);
+  }, []);
+
+  const handleSearchSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setUpgradeMessage('Search is coming soon. Hang tight!');
+  }, []);
+
+  const formatUsd = React.useCallback((value: number | null | undefined) => {
+    if (value == null || Number.isNaN(value)) return '—';
+    if (value >= 1) {
+      return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (value >= 0.01) {
+      return `$${value.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+    }
+    return `$${value.toExponential(2)}`;
+  }, []);
+
+  const activeChainCount = React.useMemo(
+    () => chainStatuses.filter((chain) => chain.status === 'ok').length,
+    [chainStatuses]
+  );
+
+  const quickMetrics = React.useMemo(() => {
+    const priceAvailable = tokenPrice?.available && tokenPrice?.priceUsd != null;
+    const priceValue = priceAvailable ? formatUsd(tokenPrice?.priceUsd) : tokenPrice?.proRequired
+      ? 'PRO plan required'
+      : tokenPriceError?.message
+        ? 'Unavailable'
+        : '—';
+
+    let priceDescription: string | undefined;
+    if (tokenPrice?.proRequired) {
+      priceDescription = tokenPrice.message || 'Requires Etherscan PRO API key.';
+    } else if (tokenPriceError?.message && !priceAvailable) {
+      priceDescription = tokenPriceError.message;
+    } else if (tokenPrice?.timestamp) {
+      priceDescription = `Updated ${timeAgo(String(Math.floor(tokenPrice.timestamp / 1000)))}`;
+    } else {
+      priceDescription = 'Live price via Etherscan';
+    }
+
+    const holderRaw = stats?.totalHolders;
+    let holderCount: number | null = null;
+    if (typeof holderRaw === 'number' && Number.isFinite(holderRaw)) {
+      holderCount = holderRaw;
+    } else if (typeof holderRaw === 'string') {
+      const parsed = Number(holderRaw);
+      holderCount = Number.isFinite(parsed) ? parsed : null;
+    }
+    const holdersValue = holderCount != null ? holderCount.toLocaleString() : '—';
+    const holdersDescription = statsError?.message || 'Across 10 supported chains';
+
+    const errorChains = chainStatuses.filter((chain) => chain.status === 'error');
+    const transactionsDescription = transfersStale
+      ? 'Serving cached data while we refresh'
+      : errorChains.length
+        ? `${activeChainCount} chains reporting · ${errorChains.length} errors`
+        : `${activeChainCount} chains reporting`;
+
+    const totalSupplyNumeric = info?.formattedTotalSupply != null ? Number(info.formattedTotalSupply) : Number.NaN;
+    const totalSupplyValue = Number.isFinite(totalSupplyNumeric)
+      ? totalSupplyNumeric.toLocaleString()
+      : '—';
+    const totalSupplyDescription = info?.tokenSymbol
+      ? `${info.tokenSymbol} circulation`
+      : 'Aggregated across supported chains';
+
+    return [
+      {
+        key: 'price',
+        label: 'BZR Price',
+        icon: <TrendingUp className="w-5 h-5" />,
+        value: priceValue,
+        description: priceDescription,
+        loading: loadingTokenPrice,
+      },
+      {
+        key: 'holders',
+        label: 'Total Holders',
+        icon: <Users className="w-5 h-5" />,
+        value: holdersValue,
+        description: holdersDescription,
+        loading: loadingStats,
+      },
+      {
+        key: 'txs',
+        label: 'Transfers (latest batch)',
+        icon: <Activity className="w-5 h-5" />,
+        value: transfers.length.toLocaleString(),
+        description: transactionsDescription,
+        loading: loadingTransfers,
+      },
+      {
+        key: 'totalSupply',
+        label: 'Total Supply',
+        icon: <HardDrive className="w-5 h-5" />,
+        value: totalSupplyValue,
+        description: totalSupplyDescription,
+        loading: loadingInfo,
+      },
+    ];
+  }, [
+    tokenPrice,
+    tokenPriceError,
+    formatUsd,
+    loadingTokenPrice,
+    stats,
+    statsError,
+    loadingStats,
+    chainStatuses,
+    transfersStale,
+    activeChainCount,
+    transfers.length,
+    loadingTransfers,
+    info,
+    loadingInfo,
+  ]);
 
   const retryChain = async (_chainId: number) => {
     setUpgradeMessage('Analytics and holder insights are part of the Pro plan. Contact us to unlock.');
@@ -259,37 +395,132 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-['Inter']">
       {/* --- Hero Section --- */}
-      <div className="bg-gradient-to-r from-blue-50 via-white to-indigo-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14 text-center space-y-6">
-          <img 
-            src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762033914/Logo_e72gnr.png" 
-            alt="BZR Logo" 
-            className="h-16 mx-auto"
-          />
-          <div className="space-y-3">
-            <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
-              The Bazaars Blockchain Explorer
-            </h1>
-            <p className="text-base md:text-lg text-gray-600 max-w-3xl mx-auto">
-              
-            </p>
-          </div>
-          <div className="max-w-2xl mx-auto w-full">
-            <div className="mt-4 sm:mt-6">
-              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/95 px-5 py-3.5 text-left shadow-lg">
-                <input
-                  type="text"
-                  placeholder="Search by Address / Txn Hash / Block (Coming Soon)"
-                  disabled
-                  className="flex-1 bg-transparent text-base md:text-lg text-gray-500 placeholder-gray-400 focus:outline-none cursor-not-allowed"
+  <div className="relative overflow-hidden bg-gradient-to-b from-[#33b76c] via-[#33b76c] to-white text-white">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 20% 15%, rgba(54,184,109,0.22) 0, transparent 45%), radial-gradient(circle at 80% 0%, rgba(54,184,109,0.12) 0, transparent 42%), radial-gradient(circle at 50% 100%, rgba(19,94,54,0.15) 0, transparent 55%)',
+          }}
+        />
+
+        <div className="relative">
+          <header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-5">
+              <div className="flex items-center gap-3">
+                <img
+                  src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png"
+                  alt="Bazaars Scan Logo"
+                  className="h-10 w-auto"
                 />
-                <button
-                  type="button"
-                  disabled
-                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-500 shadow-sm cursor-not-allowed"
+              </div>
+
+              <nav className="hidden md:flex items-center gap-6">
+                {navItems.map((item) => (
+                  <button
+                    key={item.tab}
+                    type="button"
+                    onClick={() => handleNavClick(item.tab)}
+                    className={`text-sm font-medium transition-colors ${activeTab === item.tab ? 'text-black' : 'text-gray-800 hover:text-black'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+
+              <button
+                type="button"
+                className="md:hidden inline-flex items-center justify-center rounded-xl bg-white p-2 text-[#3bb068] transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/30"
+                onClick={() => setIsNavOpen((prev) => !prev)}
+                aria-label="Toggle navigation"
+              >
+                {isNavOpen ? <X className="w-5 h-5" style={{ color: '#3bb068' }} /> : <Menu className="w-5 h-5" style={{ color: '#3bb068' }} />}
+              </button>
+            </div>
+
+            {isNavOpen && (
+              <nav className="md:hidden pb-6 flex flex-col gap-2">
+                {navItems.map((item) => (
+                  <button
+                    key={item.tab}
+                    type="button"
+                    onClick={() => handleNavClick(item.tab)}
+                    className={`w-full rounded-lg border border-black/10 px-4 py-2 text-left text-sm font-medium transition ${activeTab === item.tab ? 'bg-white text-black shadow-sm' : 'bg-white/80 text-gray-800 hover:bg-white'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            )}
+          </header>
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+            <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h1 className="text-3xl sm:text-4xl font-semibold leading-tight text-black">
+                    Bazaars Token Explorer
+                  </h1>
+                </div>
+
+                <form
+                  className="bg-white/10 border border-white/15 backdrop-blur rounded-2xl p-4 sm:p-5 shadow-xl"
+                  onSubmit={handleSearchSubmit}
                 >
-                  <Search className="w-5 h-5" />
-                </button>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Search by Address / Txn Hash / Block (coming soon)"
+                      className="flex-1 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm sm:text-base text-black placeholder-gray-500 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:-translate-y-0.5 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                    >
+                      <Search className="w-4 h-4" />
+                      Search
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="bg-white text-gray-900 rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                  <h2 className="text-base font-semibold text-gray-900">Network Overview</h2>
+                  {transfersStale && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Updating
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 divide-y divide-gray-100 sm:grid-cols-2 sm:divide-y-0 sm:divide-x">
+                  {quickMetrics.map((metric, index) => (
+                    <div
+                      key={metric.key}
+                      className={`p-6 sm:p-7 ${index >= 2 ? 'border-t border-gray-100 sm:border-t-0' : ''} ${index % 2 === 1 ? 'sm:border-l border-gray-100' : ''}`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
+                          {metric.icon}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase tracking-wide text-gray-500">{metric.label}</p>
+                          {metric.loading ? (
+                            <div className="mt-1 h-5 w-24 rounded bg-gray-200 animate-pulse" />
+                          ) : (
+                            <p className="text-lg font-semibold text-gray-900">{metric.value}</p>
+                          )}
+                          {metric.description && (
+                            <p className="text-xs text-gray-500">{metric.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -297,7 +528,7 @@ export default function App() {
       </div>
 
       <div className="pb-16">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 sm:-mt-12 lg:-mt-14">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
           <div className="space-y-6 sm:space-y-8 lg:space-y-12">
             {upgradeMessage && (
               <div
@@ -325,25 +556,6 @@ export default function App() {
 
             {!loadingInfo && info && (
               <div className="space-y-8 sm:space-y-10 lg:space-y-12">
-                {/* --- Stats Overview Cards --- */}
-                <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3 md:gap-6 mt-6">
-                  <StatCard
-                    title="Token Symbol"
-                    value={info.tokenSymbol}
-                    icon={<Box />}
-                  />
-                  <StatCard
-                    title="Total Supply"
-                    value={Number(info.formattedTotalSupply).toLocaleString()}
-                    icon={<HardDrive />}
-                  />
-                  <StatCard
-                    title="Total Holders (All Chains)"
-                    value={typeof stats?.totalHolders === 'number' ? stats.totalHolders.toLocaleString() : stats?.totalHolders || '0'}
-                    icon={<Layers />}
-                  />
-                </div>
-
                 {/* --- Navigation Tabs --- */}
                 <div className="border-b border-gray-200 mt-4 sm:mt-6 mb-6 sm:mb-8">
                   <nav className="-mb-px flex flex-nowrap items-center gap-3 sm:gap-6 md:gap-8 overflow-x-auto pb-1" aria-label="Tabs">
@@ -447,17 +659,19 @@ export default function App() {
                                 </p>
                               </div>
                             </div>
-                            <div className="w-full md:w-auto">
-                              <p className="text-sm text-gray-500 group-hover:text-gray-600 transition-colors">
-                                From: <span className="text-blue-600 group-hover:text-blue-700 transition-colors">
+                            <div className="w-full md:w-auto space-y-1">
+                              <div className="flex items-center gap-2 text-sm text-gray-500 group-hover:text-gray-600 transition-colors">
+                                <span className="w-12 shrink-0 text-gray-500">From:</span>
+                                <span className="text-blue-600 group-hover:text-blue-700 transition-colors truncate" title={tx.from}>
                                   {truncateHash(tx.from)}
                                 </span>
-                              </p>
-                              <p className="text-sm text-gray-500 group-hover:text-gray-600 transition-colors">
-                                To: <span className="text-blue-600 group-hover:text-blue-700 transition-colors">
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-500 group-hover:text-gray-600 transition-colors">
+                                <span className="w-12 shrink-0 text-gray-500">To:</span>
+                                <span className="text-blue-600 group-hover:text-blue-700 transition-colors truncate" title={tx.to}>
                                   {truncateHash(tx.to)}
                                 </span>
-                              </p>
+                              </div>
                             </div>
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
