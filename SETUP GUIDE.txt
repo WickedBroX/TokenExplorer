@@ -53,15 +53,18 @@ Phase 3: Backend Deployment (bzr-backend)
 	3	   
 	4	Install Dependencies: Bash  npm install
 	5	   
-	6	Create the Environment File: This is the most critical security step. Bash  nano .env
-	7	    Paste the following content into the file, adding your secret keys: Ini, TOML  ETHERSCAN_V2_API_KEY=[YOUR_SINGLE_ETHERSCAN_KEY]
-	8	BZR_TOKEN_ADDRESS=0x85Cb098bdcD3Ca929d2cD18Fc7A2669fF0362242
-	9	ADMIN_PASSWORD=[MAKE_A_NEW_STRONG_PASSWORD]
+	6	Create the Environment File: This is the most critical security step. Both the Etherscan and Cronos API keys are required for full multi-chain coverage. Bash  nano .env
+	7	   Paste the following content into the file, adding your secret keys (add quotes only if the values contain spaces): Ini, TOML  ETHERSCAN_V2_API_KEY=[YOUR_SINGLE_ETHERSCAN_KEY]
+	8	CRONOS_API_KEY=[YOUR_CRONOS_EXPLORER_KEY]
+	9	# Optional: override if you are using a self-hosted Cronos explorer API endpoint
+	10	# CRONOS_API_BASE_URL=https://explorer-api.cronos.org/mainnet/api/v2
+	11	BZR_TOKEN_ADDRESS=0x85Cb098bdcD3Ca929d2cD18Fc7A2669fF0362242
+	12	ADMIN_PASSWORD=[MAKE_A_NEW_STRONG_PASSWORD]
+	8	   
+	9	Start the Backend Server: Bash  pm2 start server.js --name "bzr-backend"
 	10	   
-	11	Start the Backend Server: Bash  pm2 start server.js --name "bzr-backend"
-	12	   
-	13	Verify Backend Status: Bash  pm2 logs bzr-backend
-	14	    You should see the log message: BZR Backend server listening on http://localhost:3001
+	11	Verify Backend Status: Bash  pm2 logs bzr-backend
+	12	    You should see the log message: BZR Backend server listening on http://localhost:3001
 
 
 Phase 4: Frontend Deployment (bzr-frontend)
