@@ -7,15 +7,10 @@ import {
   ErrorMessage,
   TabButton,
 } from './components';
-import { NetworkOverview } from './components/NetworkOverview';
-import { ContractAddresses } from './components/ContractAddresses';
-import { CommunityLinks } from './components/CommunityLinks';
-import { MarketData } from './components/MarketData';
 import { useTokenData } from './hooks/useTokenData';
 
 // Lazy load heavy components for better initial load performance
-// Note: Using new WorldClassAnalyticsTab instead of old AnalyticsTab
-const WorldClassAnalyticsTab = lazy(() => import('./components/WorldClassAnalyticsTab').then(module => ({ default: module.WorldClassAnalyticsTab })));
+const AnalyticsTab = lazy(() => import('./components/AnalyticsTab').then(module => ({ default: module.AnalyticsTab })));
 import type { Transfer, Holder } from './types/api';
 
 type ActiveTab = 'transfers' | 'info' | 'analytics' | 'holders';
@@ -479,9 +474,6 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [globalAllTimeTotal, setGlobalAllTimeTotal] = useState<number | null>(null);
   
-  // Track if we've attempted to auto-refresh info for the current tab activation
-  const infoAutoRefreshAttempted = React.useRef(false);
-  
   // Client-side address filter
   const [filterAddress, setFilterAddress] = useState('');
 
@@ -492,7 +484,84 @@ export default function App() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [holderSearch, setHolderSearch] = useState('');
   
-  // Note: Old analytics calculations removed - now using WorldClassAnalyticsTab with backend endpoint
+  // Analytics time range state
+  const [analyticsTimeRange, setAnalyticsTimeRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  
+  // Analytics calculations
+  const analyticsData = useMemo(() => {
+    // Calculate date range based on selection
+    const getDateRange = () => {
+      const now = Date.now();
+      const ranges = {
+        '7d': now - 7 * 24 * 60 * 60 * 1000,
+        '30d': now - 30 * 24 * 60 * 60 * 1000,
+        '90d': now - 90 * 24 * 60 * 60 * 1000,
+        'all': 0
+      };
+      return ranges[analyticsTimeRange];
+    };
+
+    // Filter transfers by time range
+    const startTime = getDateRange();
+    const filteredByTime = transfers.filter(t => {
+      const txTime = Number(t.timeStamp) * 1000;
+      return txTime >= startTime;
+    });
+
+    // Aggregate transfer data by day
+    const dayMap = new Map<string, { date: string; count: number; volume: number; uniqueAddresses: Set<string> }>();
+    
+    filteredByTime.forEach(transfer => {
+      const date = new Date(Number(transfer.timeStamp) * 1000);
+      const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      if (!dayMap.has(dayKey)) {
+        dayMap.set(dayKey, {
+          date: dayKey,
+          count: 0,
+          volume: 0,
+          uniqueAddresses: new Set()
+        });
+      }
+      
+      const day = dayMap.get(dayKey)!;
+      day.count++;
+      day.volume += Number(transfer.value) / 1e18; // Convert to BZR
+      day.uniqueAddresses.add(transfer.from.toLowerCase());
+      day.uniqueAddresses.add(transfer.to.toLowerCase());
+    });
+
+    // Convert to array and sort by date
+    const dailyData = Array.from(dayMap.values())
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(day => ({
+        date: day.date,
+        displayDate: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count: day.count,
+        volume: Math.round(day.volume),
+        uniqueAddresses: day.uniqueAddresses.size
+      }));
+
+    // Calculate analytics metrics
+    const totalTransfers = filteredByTime.length;
+    const totalVolume = filteredByTime.reduce((sum, t) => sum + Number(t.value) / 1e18, 0);
+    const avgTransferSize = totalTransfers > 0 ? totalVolume / totalTransfers : 0;
+    
+    const uniqueAddresses = new Set<string>();
+    filteredByTime.forEach(t => {
+      uniqueAddresses.add(t.from.toLowerCase());
+      uniqueAddresses.add(t.to.toLowerCase());
+    });
+
+    const analyticsMetrics = {
+      totalTransfers,
+      totalVolume: Math.round(totalVolume),
+      avgTransferSize: Math.round(avgTransferSize),
+      activeAddresses: uniqueAddresses.size
+    };
+
+    return { dailyData, analyticsMetrics };
+  }, [transfers, analyticsTimeRange]);
 
   // Capture the all-time total from "All Chains" view (chainId=0) and never change it
   useEffect(() => {
@@ -526,11 +595,11 @@ export default function App() {
     }
   }, [activeTab, holdersPage, holdersPageSize, refreshHolders]);
 
-  // Force reset page size to 10 on initial load if it's been changed
+  // Force reset page size to 25 on initial load if it's been changed
   useEffect(() => {
-    if (activeTab === 'transfers' && transfersQuery.pageSize !== 10) {
-      console.log('[Init] Forcing page size reset to 10 from', transfersQuery.pageSize);
-      setTransfersPageSize(10);
+    if (activeTab === 'transfers' && transfersQuery.pageSize !== 25) {
+      console.log('[Init] Forcing page size reset to 25 from', transfersQuery.pageSize);
+      setTransfersPageSize(25);
     }
   }, []); // Run once on mount
   
@@ -542,28 +611,12 @@ export default function App() {
         console.log('[Analytics] Fetching more data for analytics (increasing page size to 500)');
         setTransfersPageSize(500);
       }
-    } else if (activeTab === 'transfers' && transfersQuery.pageSize > 10) {
+    } else if (activeTab === 'transfers' && transfersQuery.pageSize > 25) {
       // Reset to default when switching back to transfers tab
-      console.log('[Transfers] Resetting page size to 10');
-      setTransfersPageSize(10);
+      console.log('[Transfers] Resetting page size to 25');
+      setTransfersPageSize(25);
     }
   }, [activeTab, transfersQuery.pageSize, setTransfersPageSize]);
-
-  // Auto-refresh info when switching to Info tab if data is missing
-  // Only attempts once per tab activation to prevent loops
-  useEffect(() => {
-    if (activeTab === 'info') {
-      // Reset the flag when entering info tab
-      if (!infoAutoRefreshAttempted.current && (!info || !info.tokenName) && !loadingInfo && !refreshing) {
-        console.log('[Info Tab] Auto-refreshing missing token info');
-        infoAutoRefreshAttempted.current = true;
-        refresh();
-      }
-    } else {
-      // Reset flag when leaving info tab
-      infoAutoRefreshAttempted.current = false;
-    }
-  }, [activeTab, info, loadingInfo, refreshing, refresh]);
 
   const navItems = React.useMemo(() => (
     [
@@ -629,7 +682,7 @@ export default function App() {
 
   const pageSizeOptions = React.useMemo(() => {
     const limit = transfersLimits?.maxPageSize ?? Number.POSITIVE_INFINITY;
-    const defaults = [10, 25].filter((size) => size <= limit);
+    const defaults = [10, 25, 50, 100].filter((size) => size <= limit);
     const values = new Set<number>(defaults);
     values.add(transfersQuery.pageSize);
     if (transfersDefaults) {
@@ -1122,15 +1175,8 @@ export default function App() {
       });
     }
     
-    // Limit to current page size to handle cached data properly
-    // This prevents showing more items than requested from localStorage cache
-    const pageSize = transfersQuery.pageSize;
-    if (filtered.length > pageSize && !filterAddress && !sortColumn) {
-      filtered = filtered.slice(0, pageSize);
-    }
-    
     return filtered;
-  }, [transfers, filterAddress, sortColumn, sortDirection, transfersQuery.pageSize]);
+  }, [transfers, filterAddress, sortColumn, sortDirection]);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-['Inter']">
@@ -1178,8 +1224,8 @@ export default function App() {
                         }
                       }
                     }} className="w-full">
-                      <div className="relative flex items-center">
-                        <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none" />
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <input
                           type="text"
                           value={searchTerm}
@@ -1224,9 +1270,7 @@ export default function App() {
                     }
                   }} className="w-full">
                     <div className="relative">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Search className="h-4 w-4 text-gray-400" />
-                      </div>
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
                         type="text"
                         value={searchTerm}
@@ -1903,41 +1947,200 @@ export default function App() {
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                       </div>
                     ) : !info || !info.tokenName ? (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center space-y-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                          <p className="text-yellow-800 font-medium">Token information is loading or temporarily unavailable</p>
-                        </div>
-                        <button
-                          onClick={refresh}
-                          disabled={refreshing}
-                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {refreshing ? 'Loading...' : 'Retry Loading'}
-                        </button>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                        <p className="text-yellow-800">Token information is loading or temporarily unavailable. Please refresh the page.</p>
                       </div>
                     ) : (
                       <>
                     {/* Main Content Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                      {/* Left Column: Network Overview (Token Details + Cross-Chain Stats) */}
-                      <div className="lg:col-span-1">
-                        <NetworkOverview
-                          contractLinksCount={contractLinks.length}
-                          totalHolders={holderMetrics.totalHolders}
-                          activeChainsCount={availableChains.length}
-                        />
-                      </div>
-
-                      {/* Middle Column: Contract Addresses */}
-                      <div className="lg:col-span-1">
-                        <ContractAddresses tokenAddress={BZR_TOKEN_ADDRESS} />
-                      </div>
-
-                      {/* Right Column: Community & Market Links */}
+                      {/* Left Column: Token Details + Cross-Chain Stats */}
                       <div className="lg:col-span-1 space-y-4 md:space-y-6">
-                        <CommunityLinks />
-                        <MarketData />
+                        {/* Token Details */}
+                        <div className="bg-white shadow-xl rounded-lg p-4 md:p-6 border border-gray-100">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Info className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                            <h3 className="text-base md:text-lg font-semibold text-gray-900">Token Details</h3>
+                          </div>
+                          <div className="space-y-2 md:space-y-3">
+                            <div className="p-2 md:p-3 rounded-lg bg-gradient-to-r from-blue-50 to-white border border-blue-100">
+                              <span className="text-xs text-gray-500 uppercase tracking-wide">Name</span>
+                              <p className="text-sm md:text-base font-semibold text-gray-900 mt-1">{info?.tokenName || 'N/A'}</p>
+                            </div>
+                            <div className="p-2 md:p-3 rounded-lg bg-gradient-to-r from-purple-50 to-white border border-purple-100">
+                              <span className="text-xs text-gray-500 uppercase tracking-wide">Symbol</span>
+                              <p className="text-sm md:text-base font-semibold text-gray-900 mt-1">{info?.tokenSymbol || 'N/A'}</p>
+                            </div>
+                            <div className="p-2 md:p-3 rounded-lg bg-gradient-to-r from-green-50 to-white border border-green-100">
+                              <span className="text-xs text-gray-500 uppercase tracking-wide">Decimals</span>
+                              <p className="text-sm md:text-base font-semibold text-gray-900 mt-1">{info?.tokenDecimal ?? 'N/A'}</p>
+                            </div>
+                            <div className="p-2 md:p-3 rounded-lg bg-gradient-to-r from-orange-50 to-white border border-orange-100">
+                              <span className="text-xs text-gray-500 uppercase tracking-wide">Total Supply</span>
+                              <div className="flex items-baseline mt-1 flex-wrap">
+                                <p className="text-sm md:text-base font-semibold text-gray-900">
+                                  {info?.formattedTotalSupply ? Number(info.formattedTotalSupply).toLocaleString() : 'N/A'}
+                                </p>
+                                {info?.tokenSymbol && (
+                                  <span className="ml-2 text-xs md:text-sm text-gray-500">{info.tokenSymbol}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cross-Chain Statistics */}
+                        <div className="bg-white shadow-xl rounded-lg p-6 border border-gray-100">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Layers className="w-5 h-5 text-purple-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">Cross-Chain</h3>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-100">
+                              <span className="text-sm text-gray-600">Deployed Chains</span>
+                              <span className="text-lg font-bold text-blue-600">{contractLinks.length}</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50 border border-purple-100">
+                              <span className="text-sm text-gray-600">Total Holders</span>
+                              <span className="text-lg font-bold text-purple-600">{holderMetrics.totalHolders > 0 ? holderMetrics.totalHolders.toLocaleString() : 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
+                              <span className="text-sm text-gray-600">Active Chains</span>
+                              <span className="text-lg font-bold text-green-600">{availableChains.length}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Middle Column: Contract Links */}
+                      <div className="lg:col-span-1">
+                        <div className="bg-white shadow-xl rounded-lg p-6 border border-gray-100">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Box className="w-5 h-5 text-orange-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">Contract Addresses</h3>
+                          </div>
+                          <p className="text-sm text-gray-500 mb-4">View on blockchain explorers</p>
+                          <div className="space-y-2">
+                            {contractLinks.map((link) => (
+                              <a
+                                key={link.name}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex justify-between items-center p-3 rounded-lg bg-gray-50 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border border-gray-200 hover:border-blue-300 transition-all duration-200"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-sm">
+                                    <span className="text-xs font-bold text-white">
+                                      {link.name.substring(0, 2).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                    {link.name}
+                                  </span>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column: Social & Market Links */}
+                      <div className="lg:col-span-1 space-y-6">
+                        {/* Social Links */}
+                        <div className="bg-white shadow-xl rounded-lg p-6 border border-gray-100">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Users className="w-5 h-5 text-blue-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">Community</h3>
+                          </div>
+                          <div className="space-y-2">
+                            <a
+                              href="https://twitter.com/bazaars"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-50 to-white border border-blue-100 hover:border-blue-300 transition-all group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" />
+                                  </svg>
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">Twitter</span>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                            </a>
+                            <a
+                              href="https://bazaars.app"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-green-50 to-white border border-green-100 hover:border-green-300 transition-all group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                  </svg>
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">Website</span>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-green-500 transition-colors" />
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Market Links */}
+                        <div className="bg-white shadow-xl rounded-lg p-6 border border-gray-100">
+                          <div className="flex items-center gap-2 mb-4">
+                            <TrendingUp className="w-5 h-5 text-green-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">Market Data</h3>
+                          </div>
+                          <div className="space-y-2">
+                            <a
+                              href="https://coinmarketcap.com/currencies/bazaars/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-50 to-white border border-blue-100 hover:border-blue-300 transition-all group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                                  <span className="text-xs font-bold text-white">CMC</span>
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">CoinMarketCap</span>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                            </a>
+                            <a
+                              href="https://www.coingecko.com/en/coins/bazaars"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-yellow-50 to-white border border-yellow-100 hover:border-yellow-300 transition-all group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center">
+                                  <span className="text-xs font-bold text-white">CG</span>
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">CoinGecko</span>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-yellow-600 transition-colors" />
+                            </a>
+                            <a
+                              href="https://dexscreener.com/search?q=BZR"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-purple-50 to-white border border-purple-100 hover:border-purple-300 transition-all group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
+                                  <span className="text-xs font-bold text-white">DEX</span>
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">DexScreener</span>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                            </a>
+                          </div>
+                        </div>
                       </div>
                     </div>
                       </>
@@ -1945,11 +2148,13 @@ export default function App() {
                   </div>
                 )}
 
-                {/* --- Analytics Tab (World-Class) --- */}
+                {/* --- Analytics Tab --- */}
                 {activeTab === 'analytics' && (
                   <Suspense fallback={<div className="flex items-center justify-center py-12"><LoadingSpinner /></div>}>
-                    <WorldClassAnalyticsTab 
-                      chainId={transfersQuery.chainId === 0 ? 'all' : transfersQuery.chainId.toString()}
+                    <AnalyticsTab 
+                      analyticsData={analyticsData}
+                      analyticsTimeRange={analyticsTimeRange}
+                      setAnalyticsTimeRange={setAnalyticsTimeRange}
                     />
                   </Suspense>
                 )}
@@ -2275,8 +2480,9 @@ export default function App() {
                                 onChange={(e) => setHoldersPageSize(Number(e.target.value))}
                                 className="block rounded-lg border-gray-300 text-sm py-1.5 pl-3 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
                               >
-                                <option value={10}>10</option>
                                 <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
                               </select>
                               <span className="text-sm text-gray-600">per page</span>
                             </div>

@@ -1,5 +1,11 @@
 # 🎯 Bazaars Token Explorer - Milestone Tracker
 
+> **New Milestone (2025-12-15 target):** See `docs/MILESTONE-BACKEND-UPGRADES.md` for the full roadmap covering transfer persistence, analytics rebuild, pricing resilience, and monitoring.
+
+| Milestone | Status | Owner | Notes |
+| --- | --- | --- | --- |
+| Backend Stability & Analytics | � In Progress | Backend/Data | Phase A ingestion service + persistent store landed Nov 5; rollout coordination pending |
+
 **Project:** Table Up**Backend Changes Required:** None ✅
 
 ### 🎉 **Phase 1.3 Lite: Address Filtering**

@@ -36,7 +36,7 @@ type TransfersQueryState = {
 const defaultTransfersQuery: TransfersQueryState = {
   chainId: 0, // Default to "All Chains" aggregated view
   page: 1,
-  pageSize: 10,
+  pageSize: 25,
   sort: 'desc',
   startBlock: null,
   endBlock: null,
@@ -255,7 +255,7 @@ export const useTokenData = (): UseTokenDataResult => {
   const [holdersError, setHoldersError] = useState<ApiError | null>(null);
   const [holdersChainId, setHoldersChainIdState] = useState(1); // Default to Ethereum
   const [holdersPage, setHoldersPage] = useState(1);
-  const [holdersPageSize, setHoldersPageSize] = useState(10);
+  const [holdersPageSize, setHoldersPageSize] = useState(50);
 
   const infoLoadingRef = useRef(loadingInfo);
   const transfersLoadingRef = useRef(loadingTransfers);
@@ -465,7 +465,7 @@ export const useTokenData = (): UseTokenDataResult => {
       setError(null);
     }
 
-    const shouldFetchInfo = isInitial || isRefresh || force || !info;
+    const shouldFetchInfo = isInitial;
     const shouldFetchStats = isInitial || isRefresh || force;
     const shouldFetchTokenPrice = !isBackground;
     const shouldFetchFinality = !isBackground;
@@ -473,24 +473,15 @@ export const useTokenData = (): UseTokenDataResult => {
     const infoPromise = shouldFetchInfo
       ? (async () => {
           try {
-            const infoResponse = await fetch('/api/info', { 
-              signal: controller.signal,
-              cache: 'no-cache',
-              headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
-              }
-            });
+            const infoResponse = await fetch('/api/info', { signal: controller.signal });
             const infoData = await parseJsonResponse<TokenInfo>(infoResponse);
             if (!mountedRef.current) return;
             setInfo(infoData);
-            setError(null); // Clear any previous errors on success
           } catch (err) {
             if (!mountedRef.current) return;
             if ((err as DOMException).name === 'AbortError') {
               return;
             }
-            console.error('[useTokenData] Info fetch error:', err);
             setError({ message: (err as Error).message || 'Failed to load token info' });
           } finally {
             if (mountedRef.current) {

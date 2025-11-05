@@ -39,9 +39,9 @@ echo "NPM version: $(npm --version 2>/dev/null || echo 'NPM not found in PATH')"
 echo "Installing npm packages..."
 npm install --production
 
-# Stop existing backend process
+# Stop existing backend process (kill by full path to catch all instances)
 echo "Stopping existing backend..."
-pkill -f "node server.js" || echo "No existing process found"
+pkill -f "node /var/www/bzr-backend/server.js" || pkill -f "node server.js" || echo "No existing process found"
 
 # Start backend with nohup (background process)
 echo "Starting backend server..."
