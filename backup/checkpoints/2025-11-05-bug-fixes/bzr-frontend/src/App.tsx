@@ -1,16 +1,13 @@
 import * as React from 'react';
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown, Mail, MessageCircle, Send, Fuel } from 'lucide-react';
-import { ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useState, useEffect, useMemo } from 'react';
+import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown, ArrowRightLeft } from 'lucide-react';
+import { ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import {
   LoadingSpinner,
   ErrorMessage,
   TabButton,
 } from './components';
 import { useTokenData } from './hooks/useTokenData';
-
-// Lazy load heavy components for better initial load performance
-const AnalyticsTab = lazy(() => import('./components/AnalyticsTab').then(module => ({ default: module.AnalyticsTab })));
 import type { Transfer, Holder } from './types/api';
 
 type ActiveTab = 'transfers' | 'info' | 'analytics' | 'holders';
@@ -433,7 +430,7 @@ export default function App() {
     transfersDefaults,
     availableChains,
     warmSummaries,
-    // warmTimestamp, // removed - not needed after removing warm cache display
+    warmTimestamp,
     transfersStale,
     transfersQuery,
     setTransfersChain,
@@ -599,6 +596,11 @@ export default function App() {
     setIsNavOpen(false);
   }, []);
 
+  const handleSearchSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setUpgradeMessage('Search is coming soon. Hang tight!');
+  }, []);
+
   const formatUsd = React.useCallback((value: number | null | undefined) => {
     if (value == null || Number.isNaN(value)) return '—';
     if (value >= 1) {
@@ -741,6 +743,8 @@ export default function App() {
   ]);
   const hasActiveBlockFilter = transfersFilters.startBlock != null || transfersFilters.endBlock != null;
   const includeTotals = transfersQuery.includeTotals;
+  const maxPageSize = transfersLimits?.maxPageSize ?? null;
+  const totalFetchLimit = transfersLimits?.totalFetchLimit ?? null;
   const transfersSourceBadge = React.useMemo(() => {
     if (transfersSource === 'cache') {
       return { label: 'Cache', className: 'border-blue-200 bg-blue-50 text-blue-700' };
@@ -750,6 +754,9 @@ export default function App() {
     }
     return { label: 'Network', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' };
   }, [transfersSource]);
+  const warmTimestampLabel = React.useMemo(() => (
+    warmTimestamp ? timeAgo(String(Math.floor(warmTimestamp / 1000))) : null
+  ), [warmTimestamp]);
   const totalsTimestampLabel = React.useMemo(() => (
     includeTotals && transfersTotals?.timestamp
       ? timeAgo(String(Math.floor(transfersTotals.timestamp / 1000)))
@@ -1176,163 +1183,53 @@ export default function App() {
         />
 
         <div className="relative">
-          <header className="border-b border-gray-200 bg-white">
-            {/* Top Row: Price, Gas, Search, Social Icons */}
-            <div className="border-b border-gray-200">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between py-2.5">
-                  {/* Left: BZR Price & Gas */}
-                  <div className="flex items-center gap-4 sm:gap-6">
-                    {/* BZR Price */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm text-gray-700">BZR Price:</span>
-                      {loadingTokenPrice ? (
-                        <span className="text-xs sm:text-sm text-gray-500">Loading...</span>
-                      ) : tokenPrice?.available && tokenPrice?.priceUsd ? (
-                        <span className="text-xs sm:text-sm font-semibold text-gray-900">
-                          ${typeof tokenPrice.priceUsd === 'number' ? tokenPrice.priceUsd.toFixed(6) : tokenPrice.priceUsd}
-                        </span>
-                      ) : (
-                        <span className="text-xs sm:text-sm text-gray-500">N/A</span>
-                      )}
-                    </div>
-                    
-                    {/* Gas - Placeholder (can be populated with real data later) */}
-                    <div className="hidden sm:flex items-center gap-2">
-                      <Fuel className="h-3.5 w-3.5 text-gray-700" />
-                      <span className="text-xs sm:text-sm text-gray-700">Gas:</span>
-                      <span className="text-xs sm:text-sm font-semibold text-gray-900">-- Gwei</span>
-                    </div>
-                  </div>
-
-                  {/* Center: Search Bar (Hidden on mobile) */}
-                  <div className="hidden lg:flex flex-1 max-w-2xl mx-6">
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      if (searchTerm.trim()) {
-                        setFilterAddress(searchTerm.trim());
-                        if (activeTab !== 'transfers') {
-                          setActiveTab('transfers');
-                        }
-                      }
-                    }} className="w-full">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          placeholder="Search by Address / Txn Hash / Block / Token / Domain Name"
-                          className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
-                        />
-                      </div>
-                    </form>
-                  </div>
-
-                  {/* Right: Social Icons */}
-                  <div className="flex items-center gap-3">
-                    <a
-                      href="https://t.me/Bazaarsapp"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                      title="Telegram Support"
-                    >
-                      <Send className="h-4 w-4 text-gray-700" />
-                    </a>
-                    <a
-                      href="mailto:support@bazaars.app"
-                      className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                      title="Email Support"
-                    >
-                      <Mail className="h-4 w-4 text-gray-700" />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Mobile Search Bar */}
-                <div className="lg:hidden pb-2.5">
-                  <form onSubmit={(e) => {
-                    e.preventDefault();
-                    if (searchTerm.trim()) {
-                      setFilterAddress(searchTerm.trim());
-                      if (activeTab !== 'transfers') {
-                        setActiveTab('transfers');
-                      }
-                    }
-                  }} className="w-full">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Search Address / Txn / Block..."
-                        className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
-                      />
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Row: Logo & Navigation */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between py-3">
-                {/* Logo */}
-                <div className="flex items-center gap-3">
-                  <img
-                    src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png"
-                    alt="Bazaars Scan Logo"
-                    className="h-9 sm:h-10 w-auto"
-                  />
-                </div>
-
-                {/* Desktop Navigation */}
-                <nav className="hidden md:flex items-center gap-6">
-                  {navItems.map((item) => (
-                    <button
-                      key={item.tab}
-                      type="button"
-                      onClick={() => handleNavClick(item.tab)}
-                      className={`text-sm font-medium transition-colors ${activeTab === item.tab ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </nav>
-
-                {/* Mobile Menu Button */}
-                <button
-                  type="button"
-                  className="md:hidden inline-flex items-center justify-center rounded-lg bg-gray-100 p-2 text-gray-700 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/30"
-                  onClick={() => setIsNavOpen((prev) => !prev)}
-                  aria-label="Toggle navigation"
-                >
-                  {isNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </button>
+          <header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-5">
+              <div className="flex items-center gap-3">
+                <img
+                  src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png"
+                  alt="Bazaars Scan Logo"
+                  className="h-10 w-auto"
+                />
               </div>
 
-              {/* Mobile Navigation Menu */}
-              {isNavOpen && (
-                <nav className="md:hidden pb-4 flex flex-col gap-2">
-                  {navItems.map((item) => (
-                    <button
-                      key={item.tab}
-                      type="button"
-                      onClick={() => handleNavClick(item.tab)}
-                      className={`w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition ${
-                        activeTab === item.tab 
-                          ? 'bg-gray-100 text-gray-900 border-gray-300 shadow-sm' 
-                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </nav>
-              )}
+              <nav className="hidden md:flex items-center gap-6">
+                {navItems.map((item) => (
+                  <button
+                    key={item.tab}
+                    type="button"
+                    onClick={() => handleNavClick(item.tab)}
+                    className={`text-sm font-medium transition-colors ${activeTab === item.tab ? 'text-black' : 'text-gray-800 hover:text-black'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+
+              <button
+                type="button"
+                className="md:hidden inline-flex items-center justify-center rounded-xl bg-white p-2 text-[#3bb068] transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/30"
+                onClick={() => setIsNavOpen((prev) => !prev)}
+                aria-label="Toggle navigation"
+              >
+                {isNavOpen ? <X className="w-5 h-5" style={{ color: '#3bb068' }} /> : <Menu className="w-5 h-5" style={{ color: '#3bb068' }} />}
+              </button>
             </div>
+
+            {isNavOpen && (
+              <nav className="md:hidden pb-6 flex flex-col gap-2">
+                {navItems.map((item) => (
+                  <button
+                    key={item.tab}
+                    type="button"
+                    onClick={() => handleNavClick(item.tab)}
+                    className={`w-full rounded-lg border border-black/10 px-4 py-2 text-left text-sm font-medium transition ${activeTab === item.tab ? 'bg-white text-black shadow-sm' : 'bg-white/80 text-gray-800 hover:bg-white'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            )}
           </header>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
@@ -1343,6 +1240,28 @@ export default function App() {
                     Bazaars Token Explorer
                   </h1>
                 </div>
+
+                <form
+                  className="bg-white/10 border border-white/15 backdrop-blur rounded-2xl p-4 sm:p-5 shadow-xl"
+                  onSubmit={handleSearchSubmit}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Search by Address / Txn Hash / Block (coming soon)"
+                      className="flex-1 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm sm:text-base text-black placeholder-gray-500 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:-translate-y-0.5 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                    >
+                      <Search className="w-4 h-4" />
+                      Search
+                    </button>
+                  </div>
+                </form>
               </div>
 
               <div className="bg-white text-gray-900 rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
@@ -1602,6 +1521,27 @@ export default function App() {
                           </button>
                         </div>
                       )}
+
+                      {(maxPageSize != null || totalFetchLimit != null || resultWindowLimit != null) && (
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs text-gray-500">
+                          {maxPageSize != null && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-3 py-1">
+                              Max page size {maxPageSize.toLocaleString()}
+                            </span>
+                          )}
+                          {totalFetchLimit != null && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-3 py-1">
+                              Fetch cap {totalFetchLimit.toLocaleString()} records
+                            </span>
+                          )}
+                          {resultWindowLimit != null && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-3 py-1">
+                              Window limit {resultWindowLimit.toLocaleString()} rows
+                              {maxWindowPages != null ? ` · ~${maxWindowPages.toLocaleString()} pages @ ${pageSize}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {transfersWarnings.length > 0 && (
@@ -1618,6 +1558,51 @@ export default function App() {
                             </li>
                           ))}
                         </ul>
+                      </div>
+                    )}
+
+                    {warmSummaries.length > 0 && (
+                      <div className="px-4 sm:px-6 py-3 border-b border-gray-100 bg-gray-50 text-xs sm:text-[13px] text-gray-600">
+                        <div className="flex flex-wrap gap-2">
+                          {warmSummaries.map((chain) => {
+                          const isHealthy = chain.status === 'ok';
+                          const badgeClasses = isHealthy
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : 'border-amber-200 bg-amber-50 text-amber-700';
+                          const durationSeconds = Number.isFinite(chain.durationMs)
+                            ? chain.durationMs / 1000
+                            : null;
+                          const durationLabel = durationSeconds != null
+                            ? `${durationSeconds >= 1 ? durationSeconds.toFixed(1) : durationSeconds.toFixed(2)}s`
+                            : null;
+                          const tooltipParts = [
+                            isHealthy ? 'Warm cache built successfully' : 'Warm attempt failed',
+                            durationLabel ? `Duration: ~${durationLabel}` : null,
+                            chain.timestamp ? `Updated ${new Date(chain.timestamp).toLocaleString()}` : null,
+                            !isHealthy && chain.error ? `Error: ${chain.error}` : null,
+                          ].filter(Boolean);
+
+                          return (
+                            <span
+                              key={chain.chainId}
+                              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${badgeClasses}`}
+                              title={tooltipParts.join(' • ') || undefined}
+                            >
+                              <span className="font-medium">{chain.chainName}</span>
+                              <span className="text-xs font-normal">
+                                {isHealthy
+                                  ? durationLabel ? `~${durationLabel}` : 'ok'
+                                  : 'error'}
+                              </span>
+                            </span>
+                          );
+                          })}
+                        </div>
+                        {warmTimestampLabel && (
+                          <div className="mt-2 text-[11px] text-gray-500">
+                            Warm cache updated {warmTimestampLabel}.
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2128,13 +2113,250 @@ export default function App() {
 
                 {/* --- Analytics Tab --- */}
                 {activeTab === 'analytics' && (
-                  <Suspense fallback={<div className="flex items-center justify-center py-12"><LoadingSpinner /></div>}>
-                    <AnalyticsTab 
-                      analyticsData={analyticsData}
-                      analyticsTimeRange={analyticsTimeRange}
-                      setAnalyticsTimeRange={setAnalyticsTimeRange}
-                    />
-                  </Suspense>
+                    <div className="space-y-6">
+                      {/* Header with Time Range Selector */}
+                      <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Transfer Analytics</h3>
+                            <p className="text-sm text-gray-500 mt-1">Comprehensive transfer activity insights</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Time Range:</span>
+                            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                              {[
+                                { value: '7d' as const, label: '7D' },
+                                { value: '30d' as const, label: '30D' },
+                                { value: '90d' as const, label: '90D' },
+                                { value: 'all' as const, label: 'All' }
+                              ].map(option => (
+                                <button
+                                  key={option.value}
+                                  onClick={() => setAnalyticsTimeRange(option.value)}
+                                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                    analyticsTimeRange === option.value
+                                      ? 'bg-blue-600 text-white shadow-sm'
+                                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Metrics Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-blue-50 to-white shadow-lg rounded-lg p-6 border border-blue-100">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-gray-600 font-medium">Total Transfers</p>
+                              <p className="text-3xl font-bold text-blue-600 mt-2">
+                                {analyticsData.analyticsMetrics.totalTransfers.toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                              <Activity className="w-6 h-6 text-blue-600" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-purple-50 to-white shadow-lg rounded-lg p-6 border border-purple-100">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-gray-600 font-medium">Total Volume</p>
+                              <p className="text-3xl font-bold text-purple-600 mt-2">
+                                {analyticsData.analyticsMetrics.totalVolume.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">BZR</p>
+                            </div>
+                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                              <TrendingUp className="w-6 h-6 text-purple-600" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-green-50 to-white shadow-lg rounded-lg p-6 border border-green-100">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-gray-600 font-medium">Avg Transfer</p>
+                              <p className="text-3xl font-bold text-green-600 mt-2">
+                                {analyticsData.analyticsMetrics.avgTransferSize.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">BZR</p>
+                            </div>
+                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                              <ArrowRightLeft className="w-6 h-6 text-green-600" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-orange-50 to-white shadow-lg rounded-lg p-6 border border-orange-100">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-gray-600 font-medium">Active Addresses</p>
+                              <p className="text-3xl font-bold text-orange-600 mt-2">
+                                {analyticsData.analyticsMetrics.activeAddresses.toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                              <Users className="w-6 h-6 text-orange-600" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Charts Grid */}
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        {/* Transfer Count Chart */}
+                        <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-blue-600" />
+                            Transfer Activity
+                          </h4>
+                          <p className="text-sm text-gray-500 mb-4">Daily transfer count over time</p>
+                          {analyticsData.dailyData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                              <AreaChart data={analyticsData.dailyData}>
+                                <defs>
+                                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis 
+                                  dataKey="displayDate" 
+                                  tick={{ fontSize: 12 }}
+                                  stroke="#9ca3af"
+                                />
+                                <YAxis 
+                                  tick={{ fontSize: 12 }}
+                                  stroke="#9ca3af"
+                                />
+                                <Tooltip 
+                                  contentStyle={{ 
+                                    backgroundColor: 'white', 
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                  }}
+                                  formatter={(value: number) => [value, 'Transfers']}
+                                />
+                                <Area 
+                                  type="monotone" 
+                                  dataKey="count" 
+                                  stroke="#3b82f6" 
+                                  strokeWidth={2}
+                                  fill="url(#colorCount)" 
+                                />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="h-[300px] flex items-center justify-center text-gray-400">
+                              No transfer data available for this time range
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Volume Chart */}
+                        <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-purple-600" />
+                            Transfer Volume
+                          </h4>
+                          <p className="text-sm text-gray-500 mb-4">Daily transfer volume in BZR</p>
+                          {analyticsData.dailyData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                              <BarChart data={analyticsData.dailyData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis 
+                                  dataKey="displayDate" 
+                                  tick={{ fontSize: 12 }}
+                                  stroke="#9ca3af"
+                                />
+                                <YAxis 
+                                  tick={{ fontSize: 12 }}
+                                  stroke="#9ca3af"
+                                  tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}K` : value}
+                                />
+                                <Tooltip 
+                                  contentStyle={{ 
+                                    backgroundColor: 'white', 
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                  }}
+                                  formatter={(value: number) => [value.toLocaleString() + ' BZR', 'Volume']}
+                                />
+                                <Bar 
+                                  dataKey="volume" 
+                                  fill="#8b5cf6"
+                                  radius={[8, 8, 0, 0]}
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="h-[300px] flex items-center justify-center text-gray-400">
+                              No volume data available for this time range
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Additional Insights */}
+                      <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-100">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-green-600" />
+                          Address Activity
+                        </h4>
+                        <p className="text-sm text-gray-500 mb-4">Unique addresses participating daily</p>
+                        {analyticsData.dailyData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={250}>
+                            <AreaChart data={analyticsData.dailyData}>
+                              <defs>
+                                <linearGradient id="colorAddresses" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                              <XAxis 
+                                dataKey="displayDate" 
+                                tick={{ fontSize: 12 }}
+                                stroke="#9ca3af"
+                              />
+                              <YAxis 
+                                tick={{ fontSize: 12 }}
+                                stroke="#9ca3af"
+                              />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: 'white', 
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                }}
+                                formatter={(value: number) => [value, 'Unique Addresses']}
+                              />
+                              <Area 
+                                type="monotone" 
+                                dataKey="uniqueAddresses" 
+                                stroke="#10b981" 
+                                strokeWidth={2}
+                                fill="url(#colorAddresses)" 
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="h-[250px] flex items-center justify-center text-gray-400">
+                            No address data available for this time range
+                          </div>
+                        )}
+                      </div>
+                    </div>
                 )}
 
                 {/* --- Holders Tab --- */}
@@ -2633,111 +2855,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Social Links & Contact */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 pt-8 border-t border-gray-200">
-              {/* Social Links */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-                  🌐 Social Links
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <a
-                    href="https://twitter.com/BazaarsBzr"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                  >
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
-                    <span className="group-hover:translate-x-1 transition-transform">Twitter</span>
-                  </a>
-                  <a
-                    href="https://discord.gg/bazaars-bzr-979586323688087552"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    <span className="group-hover:translate-x-1 transition-transform">Discord</span>
-                  </a>
-                  <a
-                    href="https://t.me/BazaarsOfficial"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                  >
-                    <Send className="h-4 w-4" />
-                    <span className="group-hover:translate-x-1 transition-transform">Telegram</span>
-                  </a>
-                  <a
-                    href="https://medium.com/@BazaarsBzr"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                  >
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z"/>
-                    </svg>
-                    <span className="group-hover:translate-x-1 transition-transform">Medium</span>
-                  </a>
-                  <a
-                    href="https://www.facebook.com/Bazaarsapp/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                  >
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                    <span className="group-hover:translate-x-1 transition-transform">Facebook</span>
-                  </a>
-                  <a
-                    href="https://www.instagram.com/bazaars.app/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                  >
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                    </svg>
-                    <span className="group-hover:translate-x-1 transition-transform">Instagram</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Contact */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-                  📞 Contact
-                </h3>
-                <ul className="space-y-3">
-                  <li>
-                    <a
-                      href="https://t.me/Bazaarsapp"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                    >
-                      <Send className="h-4 w-4" />
-                      <span className="group-hover:translate-x-1 transition-transform">Telegram Support</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="mailto:support@bazaars.app"
-                      className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                    >
-                      <Mail className="h-4 w-4" />
-                      <span className="group-hover:translate-x-1 transition-transform">support@bazaars.app</span>
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
             {/* Bottom Bar */}
-            <div className="pt-8 mt-8 border-t border-gray-200">
+            <div className="pt-8 border-t border-gray-200">
               <div className="flex justify-center items-center">
                 <p className="text-sm text-gray-500">
                   © 2025 Bazaars. All rights reserved.
