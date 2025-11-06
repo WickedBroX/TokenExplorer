@@ -106,7 +106,7 @@ export function EnhancedMetricCard({
       )}
 
       {/* Change indicator */}
-      {change !== undefined && change !== null && !isNaN(change) && !loading && (
+      {change !== undefined && !loading && (
         <div className="flex items-center gap-1 mt-2">
           <TrendIcon className={`h-4 w-4 ${trendColors[determinedTrend]}`} />
           <span className={`text-sm font-medium ${trendColors[determinedTrend]}`}>

@@ -1090,12 +1090,9 @@ export default function App() {
 
   // Calculate holder metrics and chart data
   const holderMetrics = useMemo(() => {
-    // Use stats.totalHolders if available (ensure it's a number), otherwise fall back to holders.length
-    const totalHolders = stats?.totalHolders ? Number(stats.totalHolders) : holders.length;
-    
     if (holders.length === 0) {
       return {
-        totalHolders, // Use stats value even if holders array is empty
+        totalHolders: 0,
         top10Percentage: 0,
         averageBalance: 0,
         medianBalance: 0,
@@ -1209,14 +1206,14 @@ export default function App() {
     });
     
     return {
-      totalHolders, // Use the value from stats or holders.length calculated at the top
+      totalHolders: holders.length,
       top10Percentage,
       averageBalance,
       medianBalance,
       pieChartData,
       barChartData
     };
-  }, [holders, stats]);
+  }, [holders]);
 
   // Apply client-side filters and sorting
   const visibleTransfers = useMemo(() => {
@@ -2094,13 +2091,11 @@ export default function App() {
 
                 {/* --- Analytics Tab (World-Class) --- */}
                 {activeTab === 'analytics' && (
-                  <div className="bg-gray-900 rounded-lg">
-                    <Suspense fallback={<div className="flex items-center justify-center py-12"><LoadingSpinner /></div>}>
-                      <WorldClassAnalyticsTab 
-                        chainId={transfersQuery.chainId === 0 ? 'all' : transfersQuery.chainId.toString()}
-                      />
-                    </Suspense>
-                  </div>
+                  <Suspense fallback={<div className="flex items-center justify-center py-12"><LoadingSpinner /></div>}>
+                    <WorldClassAnalyticsTab 
+                      chainId={transfersQuery.chainId === 0 ? 'all' : transfersQuery.chainId.toString()}
+                    />
+                  </Suspense>
                 )}
 
                 {/* --- Holders Tab --- */}

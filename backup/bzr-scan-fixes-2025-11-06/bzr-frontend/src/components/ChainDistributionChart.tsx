@@ -91,14 +91,14 @@ export function ChainDistributionChart({ data, loading = false }: ChainDistribut
     const angle = typeof midAngle === 'number' ? midAngle : Number(midAngle) || 0;
     const inner = typeof innerRadius === 'number' ? innerRadius : Number(innerRadius) || 0;
     const outer = typeof outerRadius === 'number' ? outerRadius : Number(outerRadius) || 0;
-    const slicePercent = (typeof percent === 'number' && !isNaN(percent)) ? percent : 0;
+    const slicePercent = typeof percent === 'number' ? percent : Number(percent) || 0;
     const sliceIndex = typeof index === 'number' ? index : Number(index) || 0;
 
   const radius = inner + (outer - inner) * 0.55;
   const x = centerX + radius * Math.cos(-angle * RADIAN);
   const y = centerY + radius * Math.sin(-angle * RADIAN);
     const chain = sliceIndex != null ? data[sliceIndex]?.chain ?? '' : '';
-    const percentageLabel = `${((slicePercent || 0) * 100).toFixed(1)}%`;
+    const percentageLabel = `${(slicePercent * 100).toFixed(1)}%`;
 
     return (
       <text
@@ -145,14 +145,14 @@ export function ChainDistributionChart({ data, loading = false }: ChainDistribut
         {data.map((entry, index) => (
           <div
             key={`${entry.chain}-legend`}
-            className="flex items-center gap-2 rounded-full bg-white px-3 py-1 shadow-sm"
+            className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 shadow-sm"
           >
             <span
               className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: COLORS[index % COLORS.length] }}
             />
             <span className="text-sm font-semibold text-gray-900">{entry.chain}</span>
-            <span className="text-xs font-medium text-gray-600">{entry.percentage}%</span>
+            <span className="text-xs font-medium text-gray-500">{entry.percentage}%</span>
           </div>
         ))}
       </div>
@@ -163,7 +163,7 @@ export function ChainDistributionChart({ data, loading = false }: ChainDistribut
         {data.slice(0, 5).map((chain, index) => (
           <div
             key={chain.chain}
-            className="flex items-center justify-between text-sm rounded-lg bg-white px-3 py-2 shadow-sm"
+            className="flex items-center justify-between text-sm rounded-lg bg-white/90 px-3 py-2 shadow-sm"
           >
             <div className="flex items-center gap-2">
               <div
@@ -173,8 +173,8 @@ export function ChainDistributionChart({ data, loading = false }: ChainDistribut
               <span className="text-gray-900 font-semibold">{chain.chain}</span>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-gray-700 text-right min-w-[60px]">{chain.count.toLocaleString()}</span>
-              <span className="text-blue-600 font-semibold text-right min-w-[48px]">{chain.percentage}%</span>
+              <span className="text-gray-600">{chain.count.toLocaleString()}</span>
+              <span className="text-blue-600 font-semibold">{chain.percentage}%</span>
             </div>
           </div>
         ))}

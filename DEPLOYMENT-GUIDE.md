@@ -54,6 +54,29 @@ ssh root@159.198.70.88 "systemctl restart bzr-backend bzr-ingester"
 
 Once the ingester is running and the persistent store has data, `/api/health` will report `status: "ok"` with per-chain lag and last-success timestamps.
 
+### Seeding the Persistent Store
+
+Run the seeding utility after provisioning Postgres (or whenever you need to resync recent transfers without waiting for the ingester to catch up):
+
+```bash
+ssh root@159.198.70.88 \
+   ". /root/.nvm/nvm.sh && cd /var/www/bzr-backend && node scripts/seed-transfers.js"
+```
+
+Useful flags:
+
+- `--pages=<n>` (default `10`): how many pages per chain to fetch (page size defaults to 100).
+- `--chains=<ids>`: restricts seeding to specific chain IDs (comma-separated, e.g. `--chains=137,8453`).
+- `--concurrency=<n>`: limit parallel chains (use `1` if hitting upstream rate limits).
+- `--dry-run`: preview what would be inserted without touching the database.
+
+Example to reseed Polygon and Base with 5 pages each:
+
+```bash
+ssh root@159.198.70.88 \
+   ". /root/.nvm/nvm.sh && cd /var/www/bzr-backend && node scripts/seed-transfers.js --pages=5 --concurrency=1 --chains=137,8453"
+```
+
 ---
 
 ## Quick Fix - Option 2: Use Deployment Script (No systemd)
