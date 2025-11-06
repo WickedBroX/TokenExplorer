@@ -7,7 +7,56 @@
 
 ---
 
-## Quick Fix - Option 1: Use Deployment Script (Automated)
+## Recommended: Systemd Deployment (Automated)
+
+**Prerequisites**
+
+1. Provision a PostgreSQL database and load credentials into `/var/www/bzr-backend/.env` using the fields defined in `.env.example`:
+   - `TRANSFERS_DATABASE_URL` **or** `TRANSFERS_DB_HOST`, `TRANSFERS_DB_USER`, etc.
+   - `TRANSFERS_DATA_SOURCE=store`
+   - Optional tuning: `TRANSFERS_INGEST_INTERVAL_MS`, `TRANSFERS_INGEST_CONCURRENCY`, `TRANSFERS_STALE_THRESHOLD_SECONDS`
+2. Confirm the `.env` also contains API keys (`ETHERSCAN_V2_API_KEY`, `CRONOS_API_KEY`) and the new `INGESTER_SUPERVISOR=systemd` flag.
+
+Run this from your local machine:
+
+```bash
+cd /Users/wickedbro/Desktop/TokenExplorer
+./deploy-backend.sh
+```
+
+With `USE_SYSTEMD=1` (the default), the script will:
+
+1. Upload the backend sources (including systemd unit files and startup scripts).
+2. Install/update dependencies on the server.
+3. Copy `bzr-backend.service` and `bzr-ingester.service` to `/etc/systemd/system`.
+4. Reload systemd, enable both services, and restart them.
+5. Probe `http://localhost:3001/api/info` and `/api/health` to verify the deployment.
+
+### Managing Services
+
+Check status:
+
+```bash
+ssh root@159.198.70.88 "systemctl status bzr-backend bzr-ingester"
+```
+
+Tail logs (uses journalctl):
+
+```bash
+ssh root@159.198.70.88 "journalctl -u bzr-backend -u bzr-ingester -n 200 --no-pager"
+```
+
+Restart services:
+
+```bash
+ssh root@159.198.70.88 "systemctl restart bzr-backend bzr-ingester"
+```
+
+Once the ingester is running and the persistent store has data, `/api/health` will report `status: "ok"` with per-chain lag and last-success timestamps.
+
+---
+
+## Quick Fix - Option 2: Use Deployment Script (No systemd)
 
 Run this from your local machine:
 
@@ -85,6 +134,7 @@ ssh root@159.198.70.88 "tail -50 /var/log/bzr-backend.log"
 ### Test API Directly
 ```bash
 ssh root@159.198.70.88 "curl http://localhost:3001/api/info"
+ssh root@159.198.70.88 "curl http://localhost:3001/api/health"
 ```
 
 ### Restart Backend
@@ -221,6 +271,7 @@ lsof -ti:3001 | xargs kill -9
 ```bash
 tail -50 /var/log/bzr-backend.log
 cat /var/www/bzr-backend/.env
+journalctl -u bzr-ingester -n 200 --no-pager
 ```
 
 ### Issue: 502 error persists
@@ -246,6 +297,16 @@ TOKEN_SYMBOL=BZR
 TOKEN_DECIMALS=18
 PORT=3001
 ALLOWED_ORIGINS=https://haswork.dev,http://localhost:5173
+
+# Persistent store (Postgres)
+TRANSFERS_DATABASE_URL=postgres://username:password@db-host:5432/bzr_transfers
+TRANSFERS_DATA_SOURCE=store
+TRANSFERS_STALE_THRESHOLD_SECONDS=900
+
+# Ingester cadence
+TRANSFERS_INGEST_INTERVAL_MS=30000
+TRANSFERS_INGEST_CONCURRENCY=2
+INGESTER_SUPERVISOR=systemd
 ```
 
 ---
