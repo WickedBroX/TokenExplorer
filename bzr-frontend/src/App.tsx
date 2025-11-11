@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown, Mail, MessageCircle, Send } from 'lucide-react';
+import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown, Mail, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
   LoadingSpinner,
@@ -11,7 +11,14 @@ import { NetworkOverview } from './components/NetworkOverview';
 import { ContractAddresses } from './components/ContractAddresses';
 import { CommunityLinks } from './components/CommunityLinks';
 import { MarketData } from './components/MarketData';
+import { TransactionDetailsModal } from './components/TransactionDetailsModal';
 import { useTokenData } from './hooks/useTokenData';
+import { 
+  validateSearchQuery, 
+  detectSearchType, 
+  saveRecentSearch,
+  type SearchResult 
+} from './utils/searchUtils';
 
 // Lazy load heavy components for better initial load performance
 // Note: Using new WorldClassAnalyticsTab instead of old AnalyticsTab
@@ -474,6 +481,9 @@ export default function App() {
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [globalAllTimeTotal, setGlobalAllTimeTotal] = useState<number | null>(null);
   
   // Track if we've attempted to auto-refresh info for the current tab activation
@@ -481,8 +491,97 @@ export default function App() {
   const pageSizeInitializedRef = React.useRef(false);
   const analyticsPageSizeOverrideRef = React.useRef<{ desired: number; previous: number } | null>(null);
   
-  // Client-side address filter
+  // Client-side filters
   const [filterAddress, setFilterAddress] = useState('');
+  const [filterBlockNumber, setFilterBlockNumber] = useState('');
+  const [filterTxHash, setFilterTxHash] = useState('');
+
+  // Search handler function
+  const handleSearch = async (query: string) => {
+    if (!query || !query.trim()) {
+      setSearchError('Please enter a search query');
+      return;
+    }
+
+    // Validate the search query
+    const validation = validateSearchQuery(query);
+    if (!validation.valid) {
+      setSearchError(validation.error || 'Invalid search query');
+      return;
+    }
+
+    // Clear previous errors and results
+    setSearchError(null);
+    setSearchResult(null);
+    setIsSearching(true);
+
+    try {
+      // Empty string = relative URL for production (nginx proxy), localhost for dev
+      const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+      const response = await fetch(
+        `${API_BASE_URL}/api/search?query=${encodeURIComponent(query.trim())}`,
+        { 
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || 'Search failed');
+      }
+
+      const result: SearchResult = await response.json();
+      setSearchResult(result);
+
+      // Save to recent searches
+      saveRecentSearch({
+        query: query.trim(),
+        type: detectSearchType(query),
+        timestamp: Date.now(),
+        found: result.found
+      });
+
+      // Clear all filters first
+      setFilterAddress('');
+      setFilterBlockNumber('');
+      setFilterTxHash('');
+
+      // Handle different search types
+      if (result.searchType === 'address' && result.found) {
+        // For address search, switch to transfers tab and filter
+        setFilterAddress(query.trim());
+        if (activeTab !== 'transfers') {
+          setActiveTab('transfers');
+        }
+      } else if (result.searchType === 'block' && result.found) {
+        // For block search, switch to transfers tab and filter by block number
+        setFilterBlockNumber(query.trim());
+        if (activeTab !== 'transfers') {
+          setActiveTab('transfers');
+        }
+      } else if (result.searchType === 'transaction' && result.found) {
+        // For transaction hash search, filter the table too
+        setFilterTxHash(query.trim());
+        // Modal will be shown automatically via searchResult state
+      }
+
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchError(error instanceof Error ? error.message : 'Search failed. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle "Show all transfers" from transaction modal
+  const handleShowAllTransfers = (address: string) => {
+    setSearchResult(null); // Close modal
+    setFilterBlockNumber(''); // Clear other filters
+    setFilterTxHash(''); // Clear other filters
+    setFilterAddress(address);
+    setActiveTab('transfers');
+  };
 
   // Client-side column sorting
   type SortColumn = 'block' | 'age' | 'value' | 'from' | 'to' | null;
@@ -1230,6 +1329,18 @@ export default function App() {
         tx.to.toLowerCase().includes(addressLower)
       );
     }
+
+    // Filter by block number
+    if (filterBlockNumber) {
+      const blockNum = filterBlockNumber.trim();
+      filtered = filtered.filter(tx => tx.blockNumber === blockNum);
+    }
+
+    // Filter by transaction hash
+    if (filterTxHash) {
+      const hashLower = filterTxHash.toLowerCase().trim();
+      filtered = filtered.filter(tx => tx.hash.toLowerCase() === hashLower);
+    }
     
     // Sort if column selected
     if (sortColumn) {
@@ -1264,12 +1375,13 @@ export default function App() {
     // Limit to current page size to handle cached data properly
     // This prevents showing more items than requested from localStorage cache
     const pageSize = transfersQuery.pageSize;
-    if (filtered.length > pageSize && !filterAddress && !sortColumn) {
+    const hasAnyFilter = filterAddress || filterBlockNumber || filterTxHash;
+    if (filtered.length > pageSize && !hasAnyFilter && !sortColumn) {
       filtered = filtered.slice(0, pageSize);
     }
     
     return filtered;
-  }, [transfers, filterAddress, sortColumn, sortDirection, transfersQuery.pageSize]);
+  }, [transfers, filterAddress, filterBlockNumber, filterTxHash, sortColumn, sortDirection, transfersQuery.pageSize]);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-['Inter']">
@@ -1311,10 +1423,7 @@ export default function App() {
                     <form onSubmit={(e) => {
                       e.preventDefault();
                       if (searchTerm.trim()) {
-                        setFilterAddress(searchTerm.trim());
-                        if (activeTab !== 'transfers') {
-                          setActiveTab('transfers');
-                        }
+                        handleSearch(searchTerm.trim());
                       }
                     }} className="w-full">
                       <div className="relative flex items-center">
@@ -1322,11 +1431,23 @@ export default function App() {
                         <input
                           type="text"
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          placeholder="Search by Address / Txn Hash / Block / Token / Domain Name"
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setSearchError(null); // Clear error when typing
+                          }}
+                          placeholder="Search by Address / Txn Hash / Block"
                           className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
+                          disabled={isSearching}
                         />
+                        {isSearching && (
+                          <Loader2 className="absolute right-3 h-4 w-4 text-gray-400 animate-spin" />
+                        )}
                       </div>
+                      {searchError && (
+                        <div className="absolute mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                          {searchError}
+                        </div>
+                      )}
                     </form>
                   </div>
 
@@ -1356,10 +1477,7 @@ export default function App() {
                   <form onSubmit={(e) => {
                     e.preventDefault();
                     if (searchTerm.trim()) {
-                      setFilterAddress(searchTerm.trim());
-                      if (activeTab !== 'transfers') {
-                        setActiveTab('transfers');
-                      }
+                      handleSearch(searchTerm.trim());
                     }
                   }} className="w-full">
                     <div className="relative">
@@ -1369,11 +1487,23 @@ export default function App() {
                       <input
                         type="text"
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setSearchError(null); // Clear error when typing
+                        }}
                         placeholder="Search Address / Txn / Block..."
                         className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
+                        disabled={isSearching}
                       />
+                      {isSearching && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                      )}
                     </div>
+                    {searchError && (
+                      <div className="mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                        {searchError}
+                      </div>
+                    )}
                   </form>
                 </div>
               </div>
@@ -1677,7 +1807,7 @@ export default function App() {
                         </label>
                       </div>
 
-                      {(hasActiveBlockFilter || filterAddress) && (
+                      {(hasActiveBlockFilter || filterAddress || filterBlockNumber || filterTxHash) && (
                         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <span className="font-medium text-gray-700">Active filters:</span>
                           {transfersFilters.startBlock != null && (
@@ -1687,7 +1817,7 @@ export default function App() {
                           )}
                           {transfersFilters.endBlock != null && (
                             <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
-                              End ≤ {Number(transfersFilters.endBlock).toLocaleString()}
+              End ≤ {Number(transfersFilters.endBlock).toLocaleString()}
                             </span>
                           )}
                           {filterAddress && (
@@ -1695,11 +1825,23 @@ export default function App() {
                               Address: {truncateHash(filterAddress, 6, 4)}
                             </span>
                           )}
+                          {filterBlockNumber && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-green-700">
+                              Block: {filterBlockNumber}
+                            </span>
+                          )}
+                          {filterTxHash && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-orange-700">
+                              Tx: {truncateHash(filterTxHash, 6, 4)}
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
                               handleClearFilters();
                               setFilterAddress('');
+                              setFilterBlockNumber('');
+                              setFilterTxHash('');
                             }}
                             className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-600 transition hover:border-blue-200 hover:text-blue-600"
                           >
@@ -2711,6 +2853,15 @@ export default function App() {
             </div>
           </div>
         </footer>
+
+        {/* Transaction Details Modal */}
+        {searchResult && searchResult.searchType === 'transaction' && (
+          <TransactionDetailsModal
+            result={searchResult}
+            onClose={() => setSearchResult(null)}
+            onShowAllTransfers={handleShowAllTransfers}
+          />
+        )}
       </div>
     </div>
   );
