@@ -61,13 +61,38 @@ export function InteractiveChart({
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   // Combine actual data with predictions if enabled
-  const chartData = showPredictions && predictions.length > 0
+  const baseChartData = showPredictions && predictions.length > 0
     ? [...data, ...predictions.map((pred, idx) => ({
         ...pred,
         isPrediction: true,
         [xAxisKey]: `Pred ${idx + 1}`
       }))]
     : data;
+
+  // Transform data for log scale: replace zeros with small positive values
+  const chartData = scaleType === 'log' 
+    ? baseChartData.map(point => {
+        const newPoint = { ...point };
+        dataKeys.forEach(key => {
+          const value = Number(newPoint[key.key]);
+          if (!value || value <= 0) {
+            // Replace zero/negative with a small value (0.1)
+            newPoint[key.key] = 0.1;
+          }
+        });
+        return newPoint;
+      })
+    : baseChartData;
+
+  // Calculate domain for log scale to handle zero/small values
+  const getYAxisDomain = (): [number, 'auto'] | [0, 'auto'] => {
+    if (scaleType === 'linear') {
+      return [0, 'auto'];
+    }
+    
+    // For log scale, use 0.1 as minimum to handle transformed zeros
+    return [0.1, 'auto'];
+  };
 
   // Custom tooltip with enhanced information
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number | string; name: string; color: string; payload: ChartDataPoint }>; label?: string }) => {
@@ -257,6 +282,7 @@ export function InteractiveChart({
           
           <YAxis
             scale={scaleType}
+            domain={getYAxisDomain()}
             stroke="#9CA3AF"
             style={{ fontSize: '12px' }}
             tick={{ fill: '#9CA3AF' }}

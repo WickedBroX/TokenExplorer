@@ -256,11 +256,17 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ transaction, onClos
     return link.url.replace(`address/${BZR_TOKEN_ADDRESS}`, `tx/${hash}`);
   };
 
+  const getAddressExplorerUrl = (chainName: string, address: string) => {
+    const link = contractLinks.find(l => l.name === chainName);
+    if (!link) return '#';
+    return link.url.replace(`address/${BZR_TOKEN_ADDRESS}`, `address/${address}`);
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
         <div className="bg-white rounded-xl max-w-2xl w-full p-6 relative overflow-hidden transform transition-all shadow-xl max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-6rem)] overflow-y-auto">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-green-400"></div>
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors"
@@ -312,8 +318,18 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ transaction, onClos
             />
 
             {/* Address Information */}
-            <DetailRow label="From" value={transaction.from} copyable />
-            <DetailRow label="To" value={transaction.to} copyable />
+            <DetailRow 
+              label="From" 
+              value={transaction.from} 
+              link={getAddressExplorerUrl(transaction.chainName, transaction.from)}
+              copyable 
+            />
+            <DetailRow 
+              label="To" 
+              value={transaction.to} 
+              link={getAddressExplorerUrl(transaction.chainName, transaction.to)}
+              copyable 
+            />
 
             {/* Value Information */}
             <DetailRow
@@ -554,15 +570,39 @@ export default function App() {
         if (activeTab !== 'transfers') {
           setActiveTab('transfers');
         }
+        // Scroll to transfers section
+        setTimeout(() => {
+          const transfersSection = document.getElementById('transfers-section');
+          if (transfersSection) {
+            transfersSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
       } else if (result.searchType === 'block' && result.found) {
-        // For block search, switch to transfers tab and filter by block number
+        // For block number search, filter by block number
         setFilterBlockNumber(query.trim());
         if (activeTab !== 'transfers') {
           setActiveTab('transfers');
         }
+        // Scroll to transfers section
+        setTimeout(() => {
+          const transfersSection = document.getElementById('transfers-section');
+          if (transfersSection) {
+            transfersSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
       } else if (result.searchType === 'transaction' && result.found) {
-        // For transaction hash search, filter the table too
+        // Transaction hash search - filter the table
         setFilterTxHash(query.trim());
+        if (activeTab !== 'transfers') {
+          setActiveTab('transfers');
+        }
+        // Scroll to transfers section
+        setTimeout(() => {
+          const transfersSection = document.getElementById('transfers-section');
+          if (transfersSection) {
+            transfersSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
         // Modal will be shown automatically via searchResult state
       }
 
@@ -572,15 +612,6 @@ export default function App() {
     } finally {
       setIsSearching(false);
     }
-  };
-
-  // Handle "Show all transfers" from transaction modal
-  const handleShowAllTransfers = (address: string) => {
-    setSearchResult(null); // Close modal
-    setFilterBlockNumber(''); // Clear other filters
-    setFilterTxHash(''); // Clear other filters
-    setFilterAddress(address);
-    setActiveTab('transfers');
   };
 
   // Client-side column sorting
@@ -1385,189 +1416,182 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-['Inter']">
-      {/* --- Hero Section --- */}
-  <div className="relative overflow-hidden bg-gradient-to-b from-[#33b76c] via-[#33b76c] to-white text-white">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-70"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 20% 15%, rgba(54,184,109,0.22) 0, transparent 45%), radial-gradient(circle at 80% 0%, rgba(54,184,109,0.12) 0, transparent 42%), radial-gradient(circle at 50% 100%, rgba(19,94,54,0.15) 0, transparent 55%)',
-          }}
-        />
-
-        <div className="relative">
-          <header className="border-b border-gray-200 bg-white">
-            {/* Top Row: Price, Gas, Search, Social Icons */}
-            <div className="border-b border-gray-200">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between py-2.5">
-                  {/* Left: BZR Price & Gas */}
-                  <div className="flex items-center gap-4 sm:gap-6">
-                    {/* BZR Price */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm text-gray-700">BZR Price:</span>
-                      {loadingTokenPrice ? (
-                        <span className="text-xs sm:text-sm text-gray-500">Loading...</span>
-                      ) : tokenPrice?.available && tokenPrice?.priceUsd ? (
-                        <span className="text-xs sm:text-sm font-semibold text-gray-900">
-                          ${typeof tokenPrice.priceUsd === 'number' ? tokenPrice.priceUsd.toFixed(6) : tokenPrice.priceUsd}
-                        </span>
-                      ) : (
-                        <span className="text-xs sm:text-sm text-gray-500">N/A</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Center: Search Bar (Hidden on mobile) */}
-                  <div className="hidden lg:flex flex-1 max-w-2xl mx-6">
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      if (searchTerm.trim()) {
-                        handleSearch(searchTerm.trim());
-                      }
-                    }} className="w-full">
-                      <div className="relative flex items-center">
-                        <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none" />
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={(e) => {
-                            setSearchTerm(e.target.value);
-                            setSearchError(null); // Clear error when typing
-                          }}
-                          placeholder="Search by Address / Txn Hash / Block"
-                          className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
-                          disabled={isSearching}
-                        />
-                        {isSearching && (
-                          <Loader2 className="absolute right-3 h-4 w-4 text-gray-400 animate-spin" />
-                        )}
-                      </div>
-                      {searchError && (
-                        <div className="absolute mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                          {searchError}
-                        </div>
-                      )}
-                    </form>
-                  </div>
-
-                  {/* Right: Social Icons */}
-                  <div className="flex items-center gap-3">
-                    <a
-                      href="https://t.me/Bazaarsapp"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                      title="Telegram Support"
-                    >
-                      <Send className="h-4 w-4 text-gray-700" />
-                    </a>
-                    <a
-                      href="mailto:support@bazaars.app"
-                      className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                      title="Email Support"
-                    >
-                      <Mail className="h-4 w-4 text-gray-700" />
-                    </a>
-                  </div>
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
+        {/* Top Row: Price, Gas, Search, Social Icons */}
+        <div className="border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-2.5">
+              {/* Left: BZR Price & Gas */}
+              <div className="flex items-center gap-4 sm:gap-6">
+                {/* BZR Price */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm text-gray-700">BZR Price:</span>
+                  {loadingTokenPrice ? (
+                    <span className="text-xs sm:text-sm text-gray-500">Loading...</span>
+                  ) : tokenPrice?.available && tokenPrice?.priceUsd ? (
+                    <span className="text-xs sm:text-sm font-semibold text-gray-900">
+                      ${typeof tokenPrice.priceUsd === 'number' ? tokenPrice.priceUsd.toFixed(6) : tokenPrice.priceUsd}
+                    </span>
+                  ) : (
+                    <span className="text-xs sm:text-sm text-gray-500">N/A</span>
+                  )}
                 </div>
+              </div>
 
-                {/* Mobile Search Bar */}
-                <div className="lg:hidden pb-2.5">
-                  <form onSubmit={(e) => {
-                    e.preventDefault();
-                    if (searchTerm.trim()) {
-                      handleSearch(searchTerm.trim());
-                    }
-                  }} className="w-full">
-                    <div className="relative">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Search className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setSearchError(null); // Clear error when typing
-                        }}
-                        placeholder="Search Address / Txn / Block..."
-                        className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
-                        disabled={isSearching}
-                      />
-                      {isSearching && (
-                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
-                      )}
-                    </div>
-                    {searchError && (
-                      <div className="mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                        {searchError}
-                      </div>
+              {/* Center: Search Bar (Hidden on mobile) */}
+              <div className="hidden lg:flex flex-1 max-w-2xl mx-6">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchTerm.trim()) {
+                    handleSearch(searchTerm.trim());
+                  }
+                }} className="w-full">
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setSearchError(null); // Clear error when typing
+                      }}
+                      placeholder="Search by Address / Txn Hash / Block"
+                      className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
+                      disabled={isSearching}
+                    />
+                    {isSearching && (
+                      <Loader2 className="absolute right-3 h-4 w-4 text-gray-400 animate-spin" />
                     )}
-                  </form>
-                </div>
+                  </div>
+                  {searchError && (
+                    <div className="absolute mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                      {searchError}
+                    </div>
+                  )}
+                </form>
               </div>
-            </div>
 
-            {/* Bottom Row: Logo & Navigation */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between py-3">
-                {/* Logo */}
-                <div className="flex items-center gap-3">
-                  <img
-                    src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png"
-                    alt="Bazaars Scan Logo"
-                    className="h-9 sm:h-10 w-auto"
-                  />
-                </div>
-
-                {/* Desktop Navigation */}
-                <nav className="hidden md:flex items-center gap-6">
-                  {navItems.map((item) => (
-                    <button
-                      key={item.tab}
-                      type="button"
-                      onClick={() => handleNavClick(item.tab)}
-                      className={`text-sm font-medium transition-colors ${activeTab === item.tab ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </nav>
-
-                {/* Mobile Menu Button */}
-                <button
-                  type="button"
-                  className="md:hidden inline-flex items-center justify-center rounded-lg bg-gray-100 p-2 text-gray-700 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/30"
-                  onClick={() => setIsNavOpen((prev) => !prev)}
-                  aria-label="Toggle navigation"
+              {/* Right: Social Icons */}
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://t.me/Bazaarsapp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="Telegram Support"
                 >
-                  {isNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </button>
+                  <Send className="h-4 w-4 text-gray-700" />
+                </a>
+                <a
+                  href="mailto:support@bazaars.app"
+                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="Email Support"
+                >
+                  <Mail className="h-4 w-4 text-gray-700" />
+                </a>
               </div>
-
-              {/* Mobile Navigation Menu */}
-              {isNavOpen && (
-                <nav className="md:hidden pb-4 flex flex-col gap-2">
-                  {navItems.map((item) => (
-                    <button
-                      key={item.tab}
-                      type="button"
-                      onClick={() => handleNavClick(item.tab)}
-                      className={`w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition ${
-                        activeTab === item.tab 
-                          ? 'bg-gray-100 text-gray-900 border-gray-300 shadow-sm' 
-                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </nav>
-              )}
             </div>
-          </header>
 
+            {/* Mobile Search Bar */}
+            <div className="lg:hidden pb-2.5">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (searchTerm.trim()) {
+                  handleSearch(searchTerm.trim());
+                }
+              }} className="w-full">
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <Search className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setSearchError(null); // Clear error when typing
+                    }}
+                    placeholder="Search Address / Txn / Block..."
+                    className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/50 focus:border-[#3bb068]"
+                    disabled={isSearching}
+                  />
+                  {isSearching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                  )}
+                </div>
+                {searchError && (
+                  <div className="mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                    {searchError}
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Row: Logo & Navigation */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-3">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <img
+                src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png"
+                alt="Bazaars Scan Logo"
+                className="h-9 sm:h-10 w-auto"
+              />
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-6">
+              {navItems.map((item) => (
+                <button
+                  key={item.tab}
+                  type="button"
+                  onClick={() => handleNavClick(item.tab)}
+                  className={`text-sm font-medium transition-colors ${activeTab === item.tab ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <button
+              type="button"
+              className="md:hidden inline-flex items-center justify-center rounded-lg bg-gray-100 p-2 text-gray-700 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3bb068]/30"
+              onClick={() => setIsNavOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+            >
+              {isNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+
+          {/* Mobile Navigation Menu */}
+          {isNavOpen && (
+            <nav className="md:hidden pb-4 flex flex-col gap-2">
+              {navItems.map((item) => (
+                <button
+                  key={item.tab}
+                  type="button"
+                  onClick={() => handleNavClick(item.tab)}
+                  className={`w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition ${
+                    activeTab === item.tab 
+                      ? 'bg-gray-100 text-gray-900 border-gray-300 shadow-sm' 
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          )}
+        </div>
+      </header>
+
+      {/* --- Hero Section --- */}
+      <div className="relative overflow-hidden bg-white">
+        <div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 pt-10">
             <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
               <div className="space-y-8">
@@ -1578,8 +1602,8 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="bg-white text-gray-900 rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div className="bg-white text-gray-900 rounded-3xl shadow-md border border-gray-200 overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100" style={{ backgroundColor: '#ffffff' }}>
                   <h2 className="text-base font-semibold text-gray-900">Network Overview</h2>
                   {transfersStale && (
                     <span
@@ -1590,11 +1614,12 @@ export default function App() {
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-1 divide-y divide-gray-100 sm:grid-cols-2 sm:divide-y-0 sm:divide-x">
+                <div className="grid grid-cols-1 divide-y divide-gray-100 sm:grid-cols-2 sm:divide-y-0 sm:divide-x" style={{ backgroundColor: '#ffffff' }}>
                   {quickMetrics.map((metric, index) => (
                     <div
                       key={metric.key}
                       className={`p-6 sm:p-7 ${index >= 2 ? 'border-t border-gray-100 sm:border-t-0' : ''} ${index % 2 === 1 ? 'sm:border-l border-gray-100' : ''}`}
+                      style={{ backgroundColor: '#ffffff' }}
                     >
                       <div className="flex items-start gap-4">
                         <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
@@ -1684,7 +1709,7 @@ export default function App() {
                 <div className="space-y-8">
                 {/* --- Transfers Tab --- */}
                 {activeTab === 'transfers' && (
-                  <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+                  <div id="transfers-section" className="bg-white shadow-xl rounded-lg overflow-hidden">
                     <div className="p-4 sm:p-6 border-b border-gray-200 space-y-3">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">Latest Aggregated Transfers</h3>
@@ -2859,7 +2884,6 @@ export default function App() {
           <TransactionDetailsModal
             result={searchResult}
             onClose={() => setSearchResult(null)}
-            onShowAllTransfers={handleShowAllTransfers}
           />
         )}
       </div>

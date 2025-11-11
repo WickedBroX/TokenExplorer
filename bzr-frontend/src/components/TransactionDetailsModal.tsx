@@ -1,36 +1,21 @@
-import { X, ExternalLink, Copy, Check, ArrowRight } from 'lucide-react';
+import { X, ExternalLink, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 import type { SearchResult } from '../utils/searchUtils';
-import { truncateHash } from '../utils/searchUtils';
 
 interface TransactionDetailsModalProps {
   result: SearchResult | null;
   onClose: () => void;
-  onShowAllTransfers?: (address: string) => void;
 }
 
 export const TransactionDetailsModal = ({ 
   result, 
-  onClose,
-  onShowAllTransfers 
+  onClose
 }: TransactionDetailsModalProps) => {
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-
   if (!result || !result.found || result.searchType !== 'transaction') {
     return null;
   }
 
   const { data } = result;
-
-  const copyToClipboard = async (text: string, field: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
-  };
 
   const getExplorerUrl = (chainName: string, hash: string) => {
     const explorers: Record<string, string> = {
@@ -47,6 +32,23 @@ export const TransactionDetailsModal = ({
     };
 
     return explorers[chainName] || `https://etherscan.io/tx/${hash}`;
+  };
+
+  const getAddressExplorerUrl = (chainName: string, address: string) => {
+    const explorers: Record<string, string> = {
+      'Ethereum': `https://etherscan.io/address/${address}`,
+      'Polygon': `https://polygonscan.com/address/${address}`,
+      'BSC': `https://bscscan.com/address/${address}`,
+      'Arbitrum': `https://arbiscan.io/address/${address}`,
+      'Optimism': `https://optimistic.etherscan.io/address/${address}`,
+      'Avalanche': `https://snowtrace.io/address/${address}`,
+      'Base': `https://basescan.org/address/${address}`,
+      'zkSync': `https://explorer.zksync.io/address/${address}`,
+      'Mantle': `https://mantlescan.xyz/address/${address}`,
+      'Cronos': `https://cronoscan.com/address/${address}`,
+    };
+
+    return explorers[chainName] || `https://etherscan.io/address/${address}`;
   };
 
   const formatTimestamp = (timestamp: number | string) => {
@@ -74,229 +76,162 @@ export const TransactionDetailsModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 flex items-center justify-between p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Transaction Details</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Found on {data?.chainName || 'Blockchain'}
-            </p>
-          </div>
+    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+        <div className="bg-white rounded-xl max-w-2xl w-full p-6 relative overflow-hidden transform transition-all shadow-xl max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-6rem)] overflow-y-auto">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-green-400"></div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/50 transition-colors"
-            title="Close"
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="w-6 h-6" />
           </button>
+          
+          <h3 className="text-xl font-bold text-gray-900 mb-4 pr-8">Transaction Details</h3>
+
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Chain</span>
+                <span className="text-gray-900 font-semibold">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-600">
+                    {data?.chainName || 'Unknown Chain'}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              {/* Transaction Hash */}
+              <DetailRow
+                label="Transaction Hash"
+                value={data?.hash || ''}
+                link={getExplorerUrl(data?.chainName || 'Ethereum', data?.hash || '')}
+                copyable
+              />
+
+              {/* Block Information */}
+              <DetailRow label="Block" value={data?.blockNumber?.toLocaleString() || 'N/A'} />
+
+              {/* Time Information */}
+              {data?.timestamp && (
+                <DetailRow
+                  label="Timestamp"
+                  value={formatTimestamp(data.timestamp)}
+                />
+              )}
+
+              {/* Address Information */}
+              <DetailRow 
+                label="From" 
+                value={data?.from || 'N/A'} 
+                link={data?.from ? getAddressExplorerUrl(data?.chainName || 'Ethereum', data.from) : undefined}
+                copyable 
+              />
+              <DetailRow 
+                label="To" 
+                value={data?.to || 'N/A'} 
+                link={data?.to ? getAddressExplorerUrl(data?.chainName || 'Ethereum', data.to) : undefined}
+                copyable 
+              />
+
+              {/* Value Information */}
+              {data?.value && (
+                <DetailRow
+                  label="Value"
+                  value={formatValue(data.value)}
+                />
+              )}
+
+              {/* Gas Information */}
+              {data?.gasUsed && (
+                <DetailRow label="Gas Used" value={data.gasUsed} />
+              )}
+
+              {/* Network Information */}
+              <DetailRow label="Chain ID" value={data?.chainId?.toString() || 'N/A'} />
+            </div>
+
+            <a
+              href={getExplorerUrl(data?.chainName || 'Ethereum', data?.hash || '')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 w-full flex items-center justify-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              View on {data?.chainName || 'Ethereum'} Explorer
+            </a>
+
+            <div className="text-xs text-gray-500 text-center pt-2">
+              Data source: {result.source === 'database' ? 'Local Database' : 'Blockchain Explorer'}
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
+  );
+};
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Transaction Hash */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Transaction Hash
-            </label>
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <code className="flex-1 text-sm font-mono text-gray-900 break-all">
-                {data?.hash}
-              </code>
-              <button
-                onClick={() => data?.hash && copyToClipboard(data.hash, 'hash')}
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex-shrink-0"
-                title="Copy hash"
-              >
-                {copiedField === 'hash' ? (
-                  <Check className="w-4 h-4 text-green-600" />
-                ) : (
-                  <Copy className="w-4 h-4 text-gray-600" />
-                )}
-              </button>
-            </div>
-          </div>
+// DetailRow component
+const DetailRow: React.FC<{
+  label: string;
+  value: string;
+  link?: string;
+  copyable?: boolean;
+}> = ({ label, value, link, copyable }) => {
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-          {/* Grid: Block & Timestamp */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Block Number
-              </label>
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-lg font-bold text-blue-900">
-                  {data?.blockNumber?.toLocaleString()}
-                </p>
-              </div>
-            </div>
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyStatus('success');
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      setCopyStatus('error');
+    }
 
-            {data?.timestamp && (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Timestamp
-                </label>
-                <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <p className="text-sm font-medium text-purple-900">
-                    {formatTimestamp(data.timestamp)}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+    setTimeout(() => setCopyStatus('idle'), 2000);
+  };
 
-          {/* Transfer Details */}
-          <div className="space-y-4 p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
-            <h3 className="text-sm font-semibold text-green-900 uppercase tracking-wide">
-              Transfer Details
-            </h3>
+  const truncateHash = (hash: string, startChars: number = 10, endChars: number = 10) => {
+    if (hash.length <= startChars + endChars) return hash;
+    return `${hash.slice(0, startChars)}...${hash.slice(-endChars)}`;
+  };
 
-            {/* From Address */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                From
-              </label>
-              <div className="flex items-center gap-2 p-2 bg-white rounded border border-green-200">
-                <code className="flex-1 text-sm font-mono text-gray-900">
-                  {data?.from ? truncateHash(data.from, 10, 8) : 'N/A'}
-                </code>
-                {data?.from && (
-                  <>
-                    <button
-                      onClick={() => data.from && copyToClipboard(data.from, 'from')}
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                      title="Copy from address"
-                    >
-                      {copiedField === 'from' ? (
-                        <Check className="w-3.5 h-3.5 text-green-600" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5 text-gray-600" />
-                      )}
-                    </button>
-                    {onShowAllTransfers && (
-                      <button
-                        onClick={() => onShowAllTransfers(data.from!)}
-                        className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                        title="Show all transfers from this address"
-                      >
-                        View
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Arrow */}
-            <div className="flex justify-center">
-              <ArrowRight className="w-5 h-5 text-green-600" />
-            </div>
-
-            {/* To Address */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                To
-              </label>
-              <div className="flex items-center gap-2 p-2 bg-white rounded border border-green-200">
-                <code className="flex-1 text-sm font-mono text-gray-900">
-                  {data?.to ? truncateHash(data.to, 10, 8) : 'N/A'}
-                </code>
-                {data?.to && (
-                  <>
-                    <button
-                      onClick={() => data.to && copyToClipboard(data.to, 'to')}
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                      title="Copy to address"
-                    >
-                      {copiedField === 'to' ? (
-                        <Check className="w-3.5 h-3.5 text-green-600" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5 text-gray-600" />
-                      )}
-                    </button>
-                    {onShowAllTransfers && (
-                      <button
-                        onClick={() => onShowAllTransfers(data.to!)}
-                        className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                        title="Show all transfers to this address"
-                      >
-                        View
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Value */}
-            {data?.value && (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Value
-                </label>
-                <div className="p-3 bg-white rounded border border-green-200">
-                  <p className="text-xl font-bold text-green-700">
-                    {formatValue(data.value)}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Gas Details */}
-          {data?.gasUsed && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Gas Used
-              </label>
-              <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                <p className="text-sm font-medium text-orange-900">
-                  {data.gasUsed}
-                </p>
-              </div>
-            </div>
+  return (
+    <div className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-sm font-medium text-gray-500">{label}</span>
+        <div className="flex w-full sm:w-auto flex-wrap items-start sm:items-center gap-2 sm:gap-3 sm:justify-end text-gray-900">
+          {link ? (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors break-all sm:text-right font-mono"
+            >
+              <span>{value.length > 42 ? truncateHash(value, 10, 10) : value}</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          ) : (
+            <span className="text-gray-900 break-all sm:text-right font-mono">
+              {value.length > 42 ? truncateHash(value, 10, 10) : value}
+            </span>
           )}
-
-          {/* Chain Info */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Network
-            </label>
-            <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-              <div className="flex-1">
-                <p className="text-lg font-bold text-indigo-900">
-                  {data?.chainName || 'Unknown Chain'}
-                </p>
-                <p className="text-xs text-indigo-600">
-                  Chain ID: {data?.chainId}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Source Info */}
-          <div className="text-xs text-gray-500 text-center">
-            Data source: {result.source === 'database' ? 'Local Database' : 'Blockchain Explorer'}
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="sticky bottom-0 flex gap-3 p-6 bg-gray-50 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Close
-          </button>
-          <a
-            href={getExplorerUrl(data?.chainName || 'Ethereum', data?.hash || '')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-          >
-            View on Explorer
-            <ExternalLink className="w-4 h-4" />
-          </a>
+          {copyable && (
+            <button
+              onClick={handleCopy}
+              aria-label={`Copy ${label}`}
+              className="self-start sm:self-center text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-200"
+              title="Copy to clipboard"
+            >
+              {copyStatus === 'success' ? (
+                <Check className="w-4 h-4 text-green-600" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

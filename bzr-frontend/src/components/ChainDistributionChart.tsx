@@ -55,7 +55,7 @@ export function ChainDistributionChart({ data, loading = false }: ChainDistribut
 
     const data = payload[0].payload;
     return (
-      <div className="bg-gray-900/95 backdrop-blur-sm border border-gray-700 rounded-lg p-3 shadow-xl">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl">
         <p className="text-white font-semibold mb-2">{data.chain}</p>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between gap-4">
@@ -80,38 +80,39 @@ export function ChainDistributionChart({ data, loading = false }: ChainDistribut
       cx = 0,
       cy = 0,
       midAngle = 0,
-      innerRadius = 0,
       outerRadius = 0,
-      percent = 0,
-      index = 0
+      percent = 0
     } = props;
 
     const centerX = typeof cx === 'number' ? cx : Number(cx) || 0;
     const centerY = typeof cy === 'number' ? cy : Number(cy) || 0;
     const angle = typeof midAngle === 'number' ? midAngle : Number(midAngle) || 0;
-    const inner = typeof innerRadius === 'number' ? innerRadius : Number(innerRadius) || 0;
     const outer = typeof outerRadius === 'number' ? outerRadius : Number(outerRadius) || 0;
     const slicePercent = (typeof percent === 'number' && !isNaN(percent)) ? percent : 0;
-    const sliceIndex = typeof index === 'number' ? index : Number(index) || 0;
 
-  const radius = inner + (outer - inner) * 0.55;
-  const x = centerX + radius * Math.cos(-angle * RADIAN);
-  const y = centerY + radius * Math.sin(-angle * RADIAN);
-    const chain = sliceIndex != null ? data[sliceIndex]?.chain ?? '' : '';
+    // Hide labels for very small slices (less than 3%)
+    if (slicePercent < 0.03) {
+      return null;
+    }
+
+    // Position labels outside the pie
+    const radius = outer + 30; // Position 30px outside the pie
+    const x = centerX + radius * Math.cos(-angle * RADIAN);
+    const y = centerY + radius * Math.sin(-angle * RADIAN);
     const percentageLabel = `${((slicePercent || 0) * 100).toFixed(1)}%`;
 
     return (
       <text
         x={x}
         y={y}
-        fill="#111827"
-  textAnchor={x > centerX ? 'start' : 'end'}
+        fill="white"
+        textAnchor={x > centerX ? 'start' : 'end'}
         dominantBaseline="central"
-        fontSize={12}
+        fontSize={13}
         fontWeight={600}
-        className="drop-shadow"
+        className="drop-shadow-lg"
       >
-        {chain ? `${chain}: ${percentageLabel}` : percentageLabel}
+        {percentageLabel}
       </text>
     );
   };
@@ -127,9 +128,9 @@ export function ChainDistributionChart({ data, loading = false }: ChainDistribut
             data={data}
             cx="50%"
             cy="50%"
-            labelLine={false}
+            labelLine={true}
             label={renderCustomizedLabel}
-            outerRadius={100}
+            outerRadius={120}
             fill="#8884d8"
             dataKey="count"
           >
