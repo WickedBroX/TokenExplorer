@@ -257,7 +257,7 @@ export const useTokenData = (): UseTokenDataResult => {
   const [holders, setHolders] = useState<Holder[]>([]);
   const [loadingHolders, setLoadingHolders] = useState(false);
   const [holdersError, setHoldersError] = useState<ApiError | null>(null);
-  const [holdersChainId, setHoldersChainIdState] = useState(1); // Default to Ethereum (holders API requires specific chain)
+  const [holdersChainId, setHoldersChainIdState] = useState(1); // Default to Ethereum
   const [holdersPage, setHoldersPage] = useState(1);
   const [holdersPageSize, setHoldersPageSize] = useState(10);
 

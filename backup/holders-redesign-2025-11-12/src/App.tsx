@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Box, Layers, Info, BarChart2, ExternalLink, HardDrive, Search, Menu, X, TrendingUp, Users, Activity, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown, Mail, MessageCircle, Send, Loader2 } from 'lucide-react';
+import { ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
   LoadingSpinner,
   ErrorMessage,
@@ -22,7 +23,6 @@ import {
 // Lazy load heavy components for better initial load performance
 // Note: Using new WorldClassAnalyticsTab instead of old AnalyticsTab
 const WorldClassAnalyticsTab = lazy(() => import('./components/WorldClassAnalyticsTab').then(module => ({ default: module.WorldClassAnalyticsTab })));
-import { HoldersTab } from './components/HoldersTab';
 import type { Transfer, Holder } from './types/api';
 
 type ActiveTab = 'transfers' | 'info' | 'analytics' | 'holders';
@@ -1219,7 +1219,15 @@ export default function App() {
     }
   };
   
-  // Holder metrics calculations and bar chart data have been moved to HoldersTab component
+  // Filter holders by search
+  const filteredHolders = useMemo(() => {
+    if (!holderSearch.trim()) return holders;
+    
+    const searchLower = holderSearch.toLowerCase().trim();
+    return holders.filter(holder => 
+      holder.TokenHolderAddress.toLowerCase().includes(searchLower)
+    );
+  }, [holders, holderSearch]);
 
   // Calculate holder metrics and chart data
   const holderMetrics = useMemo(() => {
@@ -1537,16 +1545,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-3">
             {/* Logo */}
-            <button 
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
-            >
+            <div className="flex items-center gap-3">
               <img
                 src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png"
                 alt="Bazaars Scan Logo"
                 className="h-9 sm:h-10 w-auto"
               />
-            </button>
+            </div>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
@@ -2278,26 +2283,355 @@ export default function App() {
 
                 {/* --- Holders Tab --- */}
                 {activeTab === 'holders' && (
-                  <HoldersTab
-                    holders={holders}
-                    holdersChainId={holdersChainId}
-                    holdersPage={holdersPage}
-                    holdersPageSize={holdersPageSize}
-                    loadingHolders={loadingHolders}
-                    holdersError={holdersError}
-                    holderSearch={holderSearch}
-                    tokenPrice={tokenPrice}
-                    availableChains={availableChains}
-                    setHoldersChainId={setHoldersChainId}
-                    setHoldersPage={setHoldersPage}
-                    setHoldersPageSize={setHoldersPageSize}
-                    setHolderSearch={setHolderSearch}
-                    refreshHolders={refreshHolders}
-                    exportHoldersToCSV={exportHoldersToCSV}
-                    getExplorerUrl={getExplorerUrl}
-                    truncateHash={truncateHash}
-                    formatUsdValue={formatUsdValue}
-                  />
+                  <div className="bg-white shadow-lg rounded-lg overflow-hidden border border-gray-100">
+                    <div className="p-4 sm:p-6 border-b border-gray-200">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">Token Holders</h3>
+                          <p className="text-sm text-gray-500 mt-1">Top holders by wallet address</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <select
+                            value={holdersChainId}
+                            onChange={(e) => setHoldersChainId(Number(e.target.value))}
+                            className="block rounded-lg border-gray-300 text-sm py-2 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
+                          >
+                            {availableChains
+                              .filter(chain => chain.id !== 0 && chain.id !== 25) // Exclude "All Chains" and Cronos (unsupported)
+                              .map(chain => (
+                                <option key={chain.id} value={chain.id}>
+                                  {chain.name}
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            onClick={() => {
+                              const chainName = availableChains.find(c => c.id === holdersChainId)?.name || 'Unknown';
+                              exportHoldersToCSV(filteredHolders, chainName);
+                            }}
+                            disabled={filteredHolders.length === 0}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
+                            title="Export holders to CSV"
+                          >
+                            <Download className="w-4 h-4" />
+                            Export
+                          </button>
+                          <button
+                            onClick={refreshHolders}
+                            disabled={loadingHolders}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
+                          >
+                            <svg
+                              className={`w-4 h-4 ${loadingHolders ? 'animate-spin' : ''}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Refresh
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Search Filter */}
+                    <div className="px-4 sm:px-6 pt-4 pb-0">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search by holder address..."
+                          value={holderSearch}
+                          onChange={(e) => setHolderSearch(e.target.value)}
+                          className="w-full px-4 py-2 pl-10 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <svg
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        {holderSearch && (
+                          <button
+                            onClick={() => setHolderSearch('')}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            aria-label="Clear search"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {holderSearch && (
+                        <p className="text-sm text-gray-600 mt-2">
+                          Showing {filteredHolders.length} of {holders.length} holders
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Holder Metrics & Charts */}
+                    {!loadingHolders && !holdersError && holders.length > 0 && (
+                      <div className="px-4 sm:px-6 pb-4">
+                        {/* Metrics Cards */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Users className="w-5 h-5 text-blue-600" />
+                              <p className="text-sm font-medium text-blue-900">Total Holders</p>
+                            </div>
+                            <p className="text-2xl font-bold text-blue-900">{holderMetrics.totalHolders.toLocaleString()}</p>
+                          </div>
+
+                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <TrendingUp className="w-5 h-5 text-purple-600" />
+                              <p className="text-sm font-medium text-purple-900">Top 10 Holders</p>
+                            </div>
+                            <p className="text-2xl font-bold text-purple-900">{holderMetrics.top10Percentage.toFixed(2)}%</p>
+                          </div>
+
+                          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Activity className="w-5 h-5 text-green-600" />
+                              <p className="text-sm font-medium text-green-900">Avg Balance</p>
+                            </div>
+                            <p className="text-2xl font-bold text-green-900">{holderMetrics.averageBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                            <p className="text-xs text-green-700 mt-1">BZR</p>
+                          </div>
+
+                          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <BarChart2 className="w-5 h-5 text-orange-600" />
+                              <p className="text-sm font-medium text-orange-900">Median Balance</p>
+                            </div>
+                            <p className="text-2xl font-bold text-orange-900">{holderMetrics.medianBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                            <p className="text-xs text-orange-700 mt-1">BZR</p>
+                          </div>
+                        </div>
+
+                        {/* Charts */}
+                        <div className="grid grid-cols-1 gap-6">
+                          {/* Bar Chart: Balance Distribution */}
+                          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-4">Balance Distribution</h4>
+                            <ResponsiveContainer width="100%" height={300}>
+                              <BarChart data={holderMetrics.barChartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <XAxis 
+                                  dataKey="range" 
+                                  style={{ fontSize: '12px' }}
+                                  stroke="#6b7280"
+                                />
+                                <YAxis 
+                                  style={{ fontSize: '12px' }}
+                                  stroke="#6b7280"
+                                />
+                                <Tooltip 
+                                  cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                                  formatter={(value: number) => [`${value} holders`, 'Count']}
+                                />
+                                <Bar dataKey="holders" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-4 sm:p-6">
+                      {loadingHolders ? (
+                        <div className="flex items-center justify-center py-12">
+                          <div className="text-center">
+                            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+                            <p className="mt-4 text-sm text-gray-600">Loading holders...</p>
+                          </div>
+                        </div>
+                      ) : holdersError ? (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="flex items-start">
+                            <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+                            <div>
+                              <h4 className="text-sm font-semibold text-red-800">Error Loading Holders</h4>
+                              <p className="text-sm text-red-700 mt-1">{holdersError.message}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : holders.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-gray-600">No holders found</p>
+                          <p className="text-sm text-gray-500 mt-1">Try refreshing or selecting a different chain</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Desktop Table */}
+                          <div className="hidden md:block overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead>
+                                <tr className="bg-gray-50">
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    Rank
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    Address
+                                  </th>
+                                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    Balance
+                                  </th>
+                                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    USD Value
+                                  </th>
+                                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    Percentage
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-100">
+                                {filteredHolders.map((holder, index) => {
+                                  const balance = parseFloat(holder.TokenHolderQuantity) / Math.pow(10, 18);
+                                  const maxSupply = 555555555; // 555,555,555 BZR max supply
+                                  const percentage = (balance / maxSupply) * 100;
+                                  const chainName = availableChains.find(c => c.id === holdersChainId)?.name || '';
+                                  const usdValue = tokenPrice?.priceUsd ? balance * tokenPrice.priceUsd : null;
+
+                                  return (
+                                    <tr key={holder.TokenHolderAddress} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        #{index + 1}
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap">
+                                        <a
+                                          href={getExplorerUrl(chainName, holder.TokenHolderAddress, 'address')}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center gap-2 text-sm font-mono text-blue-600 hover:text-blue-800 hover:underline group"
+                                        >
+                                          {truncateHash(holder.TokenHolderAddress, 8, 6)}
+                                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </a>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                                        {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} BZR
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-semibold text-green-600">
+                                        {usdValue !== null ? formatUsdValue(usdValue) : (
+                                          <span className="text-gray-400">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                                        {percentage.toFixed(4)}%
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Mobile Cards */}
+                          <div className="md:hidden space-y-3">
+                            {filteredHolders.map((holder, index) => {
+                              const balance = parseFloat(holder.TokenHolderQuantity) / Math.pow(10, 18);
+                              const maxSupply = 555555555; // 555,555,555 BZR max supply
+                              const percentage = (balance / maxSupply) * 100;
+                              const chainName = availableChains.find(c => c.id === holdersChainId)?.name || '';
+                              const usdValue = tokenPrice?.priceUsd ? balance * tokenPrice.priceUsd : null;
+
+                              return (
+                                <div key={holder.TokenHolderAddress} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold text-gray-500 bg-white px-2 py-1 rounded">
+                                        Rank #{index + 1}
+                                      </span>
+                                    </div>
+                                    <a
+                                      href={getExplorerUrl(chainName, holder.TokenHolderAddress, 'address')}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <div>
+                                      <div className="text-xs text-gray-500 mb-1">Address</div>
+                                      <div className="text-sm font-mono text-gray-900">
+                                        {truncateHash(holder.TokenHolderAddress, 10, 8)}
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <div className="text-xs text-gray-500 mb-1">Balance</div>
+                                        <div className="text-sm font-semibold text-gray-900">
+                                          {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} BZR
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-xs text-gray-500 mb-1">USD Value</div>
+                                        <div className="text-sm font-semibold text-green-600">
+                                          {usdValue !== null ? formatUsdValue(usdValue) : (
+                                            <span className="text-gray-400">—</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-xs text-gray-500 mb-1">Percentage</div>
+                                        <div className="text-sm text-gray-700">{percentage.toFixed(4)}%</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Pagination Controls */}
+                          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-200">
+                            <div className="flex items-center gap-2">
+                              <label htmlFor="pageSize" className="text-sm text-gray-600">
+                                Show:
+                              </label>
+                              <select
+                                id="pageSize"
+                                value={holdersPageSize}
+                                onChange={(e) => setHoldersPageSize(Number(e.target.value))}
+                                className="block rounded-lg border-gray-300 text-sm py-1.5 pl-3 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
+                              >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                              </select>
+                              <span className="text-sm text-gray-600">per page</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setHoldersPage(Math.max(1, holdersPage - 1))}
+                                disabled={holdersPage === 1 || loadingHolders}
+                                className="px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
+                              >
+                                Previous
+                              </button>
+                              <span className="text-sm text-gray-600 px-2">
+                                Page {holdersPage}
+                              </span>
+                              <button
+                                onClick={() => setHoldersPage(holdersPage + 1)}
+                                disabled={holders.length < holdersPageSize || loadingHolders}
+                                className="px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
