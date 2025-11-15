@@ -350,14 +350,19 @@ export const useTokenData = (): UseTokenDataResult => {
       
       if (!mountedRef.current) return;
       
-      // Sort holders by balance in descending order (highest balance first)
-      const sortedHolders = (data.data || []).sort((a, b) => {
-        const balanceA = parseFloat(a.TokenHolderQuantity) || 0;
-        const balanceB = parseFloat(b.TokenHolderQuantity) || 0;
-        return balanceB - balanceA; // Descending order
-      });
+      // Filter out zero balances and sort holders by balance in descending order
+      const filteredAndSortedHolders = (data.data || [])
+        .filter(holder => {
+          const balance = parseFloat(holder.TokenHolderQuantity) || 0;
+          return balance > 0; // Only include holders with positive balance
+        })
+        .sort((a, b) => {
+          const balanceA = parseFloat(a.TokenHolderQuantity) || 0;
+          const balanceB = parseFloat(b.TokenHolderQuantity) || 0;
+          return balanceB - balanceA; // Descending order
+        });
       
-      setHolders(sortedHolders);
+      setHolders(filteredAndSortedHolders);
     } catch (error: unknown) {
       if (!mountedRef.current) return;
       

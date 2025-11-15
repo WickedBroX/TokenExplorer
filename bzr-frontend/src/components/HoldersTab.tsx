@@ -97,11 +97,16 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
     holder.TokenHolderAddress.toLowerCase().includes(holderSearch.toLowerCase())
   );
 
-  // Calculate holder data
-  const holdersWithBalance = filteredHolders.map(holder => ({
-    ...holder,
-    balance: parseFloat(holder.TokenHolderQuantity) / Math.pow(10, 18),
-  }));
+  // Calculate holder data and filter out zero/dust balances
+  const holdersWithBalance = filteredHolders
+    .map(holder => ({
+      ...holder,
+      balance: parseFloat(holder.TokenHolderQuantity) / Math.pow(10, 18),
+    }))
+    .filter(holder => {
+      // Filter out zero balances and very small dust amounts (less than 0.000001 BZR)
+      return holder.balance >= 0.000001;
+    });
 
   // Further filter by selected tier
   const tierFilteredHolders = selectedTier
