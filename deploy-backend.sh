@@ -46,6 +46,9 @@ echo "NPM version: $(npm --version 2>/dev/null || echo 'NPM not found in PATH')"
 echo "Installing npm packages..."
 npm install --production
 
+echo "Running database migrations..."
+npm run migrate
+
 chmod +x scripts/start-backend.sh scripts/start-ingester.sh 2>/dev/null || true
 ENDSSH
 

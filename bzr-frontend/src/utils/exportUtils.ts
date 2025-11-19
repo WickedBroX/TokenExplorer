@@ -1,3 +1,6 @@
+import type { Transfer, Holder } from '../types/api';
+import { timeAgo } from './formatters';
+
 // Export utilities for analytics data
 
 /**
@@ -193,3 +196,124 @@ export function formatAnalyticsForExport(analyticsData: {
     topWhaleTransfers: analyticsData.topWhales || []
   };
 }
+
+export const exportTransfersToCSV = (transfers: Transfer[], filename: string = 'bzr-transfers.csv') => {
+  if (transfers.length === 0) return;
+
+  // CSV Headers
+  const headers = [
+    'Transaction Hash',
+    'Block Number',
+    'Timestamp',
+    'Age',
+    'From Address',
+    'To Address',
+    'Value (BZR)',
+    'Method',
+    'Chain',
+    'Gas Used',
+    'Gas Price (Gwei)',
+    'Confirmations'
+  ];
+
+  // Helper to escape CSV fields
+  const escapeCSV = (value: string | undefined | null): string => {
+    if (value === undefined || value === null) return '';
+    const stringValue = String(value);
+    // Escape quotes and wrap in quotes if contains comma, quote, or newline
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  // Convert transfers to CSV rows
+  const rows = transfers.map(tx => {
+    const value = parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal || 18);
+    const gasPrice = tx.gasPrice ? (parseFloat(tx.gasPrice) / 1e9).toFixed(2) : '';
+    const timestampMs = parseInt(tx.timeStamp) * 1000;
+    const age = timeAgo(timestampMs.toString());
+    
+    return [
+      escapeCSV(tx.hash),
+      escapeCSV(tx.blockNumber),
+      escapeCSV(tx.timeStamp),
+      escapeCSV(age),
+      escapeCSV(tx.from),
+      escapeCSV(tx.to),
+      value.toFixed(6),
+      escapeCSV(tx.functionName || tx.methodId || 'Transfer'),
+      escapeCSV(tx.chainName),
+      escapeCSV(tx.gasUsed),
+      gasPrice,
+      escapeCSV(tx.confirmations)
+    ].join(',');
+  });
+
+  // Combine headers and rows
+  const csvContent = [headers.join(','), ...rows].join('\n');
+
+  // Create blob and download
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+export const exportHoldersToCSV = (holders: Holder[], chainName: string, filename?: string) => {
+  if (holders.length === 0) return;
+
+  const timestamp = new Date().toISOString().split('T')[0];
+  const defaultFilename = `bzr-holders-${chainName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`;
+
+  // CSV Headers
+  const headers = ['Rank', 'Address', 'Balance (BZR)', 'Percentage'];
+
+  // Helper to escape CSV fields
+  const escapeCSV = (value: string | number | undefined | null): string => {
+    if (value === undefined || value === null) return '';
+    const stringValue = String(value);
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  const totalSupply = 100000000; // 100M BZR total supply
+
+  // Convert holders to CSV rows
+  const rows = holders.map((holder, index) => {
+    const balance = parseFloat(holder.TokenHolderQuantity) / Math.pow(10, 18);
+    const percentage = (balance / totalSupply) * 100;
+
+    return [
+      index + 1,
+      escapeCSV(holder.TokenHolderAddress),
+      balance.toFixed(6),
+      percentage.toFixed(4)
+    ].join(',');
+  });
+
+  // Combine headers and rows
+  const csvContent = [headers.join(','), ...rows].join('\n');
+
+  // Create blob and download
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename || defaultFilename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
