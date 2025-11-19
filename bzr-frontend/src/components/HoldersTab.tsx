@@ -26,9 +26,8 @@ interface HoldersTabProps {
   getExplorerUrl: (chainName: string, address: string, type: 'tx' | 'address') => string;
   truncateHash: (hash: string, start?: number, end?: number) => string;
   formatUsdValue: (value: number) => string;
+  totalSupply: number;
 }
-
-const MAX_SUPPLY = 555555555;
 
 // Tier definitions
 const getTier = (balance: number): { name: string; icon: string; gradient: string; badge: string } => {
@@ -86,6 +85,7 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
   getExplorerUrl,
   truncateHash,
   formatUsdValue,
+  totalSupply,
 }) => {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
@@ -515,7 +515,7 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                     <div className="bg-white divide-y divide-gray-100">
                       {tierHolders.map((holder) => {
                         const globalRank = sortedByBalance.findIndex(h => h.TokenHolderAddress === holder.TokenHolderAddress) + 1;
-                        const percentage = (holder.balance / MAX_SUPPLY) * 100;
+                        const percentage = (holder.balance / totalSupply) * 100;
                         const usdValue = tokenPrice?.priceUsd && holder.balance ? holder.balance * tokenPrice.priceUsd : null;
 
                         return (

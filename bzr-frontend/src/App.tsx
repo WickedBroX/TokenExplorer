@@ -2297,6 +2297,7 @@ export default function App() {
                     getExplorerUrl={getExplorerUrl}
                     truncateHash={truncateHash}
                     formatUsdValue={formatUsdValue}
+                    totalSupply={info?.totalSupply ? parseFloat(info.totalSupply) / Math.pow(10, info.tokenDecimal || 18) : 555555555}
                   />
                 )}
               </div>
