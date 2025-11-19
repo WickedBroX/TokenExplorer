@@ -39,12 +39,15 @@ export const HoldersPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div>
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+        <div className="p-2 bg-blue-50 rounded-lg text-blue-600 border border-blue-100">
           <Users className="w-6 h-6" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Token Holders</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Token Holders</h1>
+          <p className="text-sm text-gray-500">Real-time list of BZR token holders across chains</p>
+        </div>
       </div>
 
       <HoldersTab
@@ -66,7 +69,6 @@ export const HoldersPage: React.FC = () => {
         getExplorerUrl={getExplorerUrl}
         truncateHash={truncateHash}
         formatUsdValue={formatUsdValue}
-        totalSupply={100000000} // 100M BZR total supply
       />
     </div>
   );

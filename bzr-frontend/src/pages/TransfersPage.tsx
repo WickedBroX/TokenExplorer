@@ -72,7 +72,7 @@ export const TransfersPage: React.FC = () => {
   // Sorting helpers
   const handleSort = () => {
     const newDirection = sort === 'asc' ? 'desc' : 'asc';
-    setSort(newDirection);
+    setTransfersSort(newDirection);
   };
 
   const sortDirection = sort;
@@ -92,9 +92,14 @@ export const TransfersPage: React.FC = () => {
     setPage(1);
   };
 
+  const setTransfersSort = (newSort: 'asc' | 'desc') => {
+    setSort(newSort);
+    setPage(1);
+  };
+
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div>
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
           <Layers className="w-6 h-6" />
@@ -171,7 +176,7 @@ export const TransfersPage: React.FC = () => {
               <span className="font-medium text-gray-500">Sort:</span>
               <select
                 value={sort}
-                onChange={(e) => setSort(e.target.value as 'asc' | 'desc')}
+                onChange={(e) => setTransfersSort(e.target.value as 'asc' | 'desc')}
                 className="rounded-md border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="desc">Newest first</option>
@@ -289,7 +294,7 @@ export const TransfersPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span className="text-sm font-semibold text-gray-900">
-                          {formatValue(tx.value, tx.tokenDecimal)} {tx.tokenSymbol}
+                          {formatValue(tx.value, Number(tx.tokenDecimal) || 18)} {tx.tokenSymbol}
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">

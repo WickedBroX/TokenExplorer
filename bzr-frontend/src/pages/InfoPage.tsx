@@ -40,7 +40,7 @@ export const InfoPage: React.FC = () => {
   }, [info, loadingInfo, refreshing, refresh]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div>
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
           <Info className="w-6 h-6" />
@@ -48,14 +48,16 @@ export const InfoPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900">Info & Contract</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          {/* NetworkOverview removed as it is now in the main header */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Market Data & Community (takes 2 columns on large screens) */}
+        <div className="lg:col-span-2 space-y-6">
           <MarketData />
-        </div>
-        <div className="space-y-6">
-          <ContractAddresses tokenAddress={BZR_TOKEN_ADDRESS} />
           <CommunityLinks />
+        </div>
+        
+        {/* Right column - Contract Addresses (takes 1 column) */}
+        <div>
+          <ContractAddresses tokenAddress={BZR_TOKEN_ADDRESS} />
         </div>
       </div>
     </div>

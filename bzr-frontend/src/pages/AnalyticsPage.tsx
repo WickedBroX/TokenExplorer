@@ -6,7 +6,7 @@ export const AnalyticsPage: React.FC = () => {
   const chainId = 'all';
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div>
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
           <BarChart2 className="w-6 h-6" />
