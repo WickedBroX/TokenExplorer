@@ -123,18 +123,18 @@ export const TokenOverviewHeader = () => {
             {/* Contract */}
             <div>
               <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Contract</div>
-              <div className="flex items-center gap-2 group">
+              <div className="flex items-center gap-2 group min-w-0">
                 <a 
                   href={`https://etherscan.io/address/${BZR_ADDRESS}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm text-blue-600 font-mono truncate hover:text-blue-800 transition-colors"
+                  className="text-sm text-blue-600 font-mono truncate hover:text-blue-800 transition-colors flex-1 min-w-0"
                 >
                   {BZR_ADDRESS}
                 </a>
                 <button 
                   onClick={handleCopy}
-                  className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-all"
+                  className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-all flex-shrink-0"
                 >
                   {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                 </button>
