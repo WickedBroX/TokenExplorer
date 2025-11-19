@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Box, Download, Layers, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { useTokenData } from '../hooks/useTokenData';
+import { useTransfers } from '../hooks/api/useTransfers';
 import { LoadingSpinner } from '../components';
 import { TransactionModal } from '../components/TransactionModal';
 import { exportTransfersToCSV } from '../utils/exportUtils';
@@ -10,21 +10,12 @@ import type { Transfer } from '../types/api';
 
 export const TransfersPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const {
-    transfers,
-    loadingTransfers,
-    refreshing,
-    refresh,
-    lastUpdated,
-    transfersPagination,
-    transfersQuery,
-    setTransfersPage,
-    setTransfersPageSize,
-    setTransfersSort,
-    availableChains,
-    setTransfersChain,
-  } = useTokenData();
-
+  
+  const [chainId, setChainId] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [sort, setSort] = useState<'asc' | 'desc'>('desc');
+  
   const [selectedTransaction, setSelectedTransaction] = useState<Transfer | null>(null);
   const [filterAddress, setFilterAddress] = useState(searchParams.get('address') || '');
   const [filterBlockNumber, setFilterBlockNumber] = useState(searchParams.get('block') || '');
@@ -39,29 +30,39 @@ export const TransfersPage: React.FC = () => {
     if (block) setFilterBlockNumber(block);
   }, [searchParams]);
 
-  // Filter logic
-  const visibleTransfers = React.useMemo(() => {
-    return transfers.filter(tx => {
-      if (filterAddress && 
-          tx.from.toLowerCase() !== filterAddress.toLowerCase() && 
-          tx.to.toLowerCase() !== filterAddress.toLowerCase()) {
-        return false;
-      }
-      if (filterBlockNumber && tx.blockNumber !== filterBlockNumber) {
-        return false;
-      }
-      if (filterTxHash && !tx.hash.toLowerCase().includes(filterTxHash.toLowerCase())) {
-        return false;
-      }
-      return true;
-    });
-  }, [transfers, filterAddress, filterBlockNumber, filterTxHash]);
+  const { data, isLoading, isFetching, refetch } = useTransfers({
+    chainId,
+    page,
+    pageSize,
+    sort,
+    address: filterAddress || undefined,
+    block: filterBlockNumber || undefined,
+    hash: filterTxHash || undefined,
+  });
+
+  const transfers = data?.data || [];
+  const meta = data?.meta;
+  const totalFromMeta = meta?.total ?? transfers.length;
+  const totalPagesFromMeta = meta?.totalPages ?? (totalFromMeta > 0 ? Math.ceil(totalFromMeta / pageSize) : 1);
+
+  const transfersPagination = {
+    page: meta?.page ?? page,
+    totalPages: totalPagesFromMeta,
+    total: totalFromMeta,
+  };
+  const availableChains = data?.availableChains || [];
+  const lastUpdated = data?.timestamp;
+
+  // Filter logic - Client side filtering is no longer needed as we pass params to API
+  // But we keep it for immediate feedback if needed, or just rely on API.
+  // The original code filtered `transfers` which was from API.
+  // Since we pass filters to API, the returned `transfers` are already filtered.
+  const visibleTransfers = transfers;
 
   // Pagination helpers
   const currentPage = transfersPagination?.page || 1;
   const totalPages = transfersPagination?.totalPages || 1;
   const totalRecords = transfersPagination?.total;
-  const pageSize = transfersPagination?.pageSize || 25;
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
   
@@ -70,18 +71,27 @@ export const TransfersPage: React.FC = () => {
 
   // Sorting helpers
   const handleSort = () => {
-    const newDirection = transfersQuery.sort === 'asc' ? 'desc' : 'asc';
-    setTransfersSort(newDirection);
-    // Note: The API currently only supports sorting by timestamp (age), 
-    // so we might need to enhance the hook if we want column-specific sorting.
-    // For now, we toggle global sort direction.
+    const newDirection = sort === 'asc' ? 'desc' : 'asc';
+    setSort(newDirection);
   };
 
-  const sortDirection = transfersQuery.sort;
+  const sortDirection = sort;
   const sortColumn = 'age'; // Default for now
 
-  const chainOptions = [{ id: 0, name: 'All Chains' }, ...availableChains];
+  const chainOptions = availableChains; // Backend already includes "All Chains"
   const pageSizeOptions = [10, 25, 50, 100];
+
+  const setTransfersChain = (id: number) => {
+    setChainId(id);
+    setPage(1);
+  };
+
+  const setTransfersPage = (p: number) => setPage(p);
+  const setTransfersPageSize = (s: number) => {
+    setPageSize(s);
+    setPage(1);
+  };
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -100,14 +110,14 @@ export const TransfersPage: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={refresh}
-                  disabled={refreshing}
+                  onClick={() => refetch()}
+                  disabled={isFetching}
                   className={`inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-600 transition-all hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70`}
                 >
-                  <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                  {isFetching ? 'Refreshing...' : 'Refresh'}
                 </button>
                 <button
                   type="button"
@@ -132,7 +142,7 @@ export const TransfersPage: React.FC = () => {
             <label className="flex items-center gap-2">
               <span className="font-medium text-gray-500">Chain:</span>
               <select
-                value={transfersQuery.chainId}
+                value={chainId}
                 onChange={(e) => setTransfersChain(Number(e.target.value))}
                 className="rounded-md border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500"
               >
@@ -160,8 +170,8 @@ export const TransfersPage: React.FC = () => {
             <label className="flex items-center gap-2">
               <span className="font-medium text-gray-500">Sort:</span>
               <select
-                value={transfersQuery.sort}
-                onChange={(e) => setTransfersSort(e.target.value as 'asc' | 'desc')}
+                value={sort}
+                onChange={(e) => setSort(e.target.value as 'asc' | 'desc')}
                 className="rounded-md border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="desc">Newest first</option>
@@ -195,7 +205,7 @@ export const TransfersPage: React.FC = () => {
         </div>
 
         {/* Table Content */}
-        {loadingTransfers && transfers.length === 0 ? (
+        {isLoading && transfers.length === 0 ? (
           <div className="py-16">
             <LoadingSpinner />
           </div>
@@ -284,7 +294,7 @@ export const TransfersPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
-                          {tx.chainName}
+                          {tx.chainName ?? ''}
                         </span>
                       </td>
                     </tr>
@@ -301,7 +311,7 @@ export const TransfersPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => canGoPrev && setTransfersPage(currentPage - 1)}
-                  disabled={!canGoPrev || loadingTransfers}
+                  disabled={!canGoPrev || isLoading}
                   className="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 bg-white hover:bg-gray-50"
                 >
                   Previous
@@ -311,7 +321,7 @@ export const TransfersPage: React.FC = () => {
                 </span>
                 <button
                   onClick={() => canGoNext && setTransfersPage(currentPage + 1)}
-                  disabled={!canGoNext || loadingTransfers}
+                  disabled={!canGoNext || isLoading}
                   className="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 bg-white hover:bg-gray-50"
                 >
                   Next

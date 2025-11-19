@@ -131,7 +131,8 @@ export interface TransferFiltersMeta {
 
 export interface TransfersResponse<TTransfer> {
   data: TTransfer[];
-  pagination: TransferPaginationMeta;
+  pagination?: TransferPaginationMeta; // legacy / single-chain
+  meta?: TransferPaginationMeta;       // new backend shape
   totals: TransferTotalsMeta | null;
   chain: { id: number; name: string };
   sort: 'asc' | 'desc';

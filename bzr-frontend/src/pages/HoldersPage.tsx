@@ -1,34 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
-import { useTokenData } from '../hooks/useTokenData';
+import { useHolders } from '../hooks/api/useHolders';
+import { useTokenPrice } from '../hooks/api/useTokenPrice';
+import { useTransfers } from '../hooks/api/useTransfers';
 import { HoldersTab } from '../components/HoldersTab';
 import { exportHoldersToCSV } from '../utils/exportUtils';
 import { getExplorerUrl, truncateHash, formatUsdValue } from '../utils/formatters';
 
 export const HoldersPage: React.FC = () => {
-  const {
-    holders,
-    loadingHolders,
-    holdersError,
-    holdersChainId,
-    setHoldersChainId,
-    holdersPage,
-    setHoldersPage,
-    holdersPageSize,
-    setHoldersPageSize,
-    refreshHolders,
-    availableChains,
-    tokenPrice,
-  } = useTokenData();
-
+  const [chainId, setChainId] = useState(1);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [holderSearch, setHolderSearch] = useState('');
+
+  const { 
+    data: holdersData, 
+    isLoading: loadingHolders, 
+    error: holdersError, 
+    refetch: refreshHolders 
+  } = useHolders({
+    chainId,
+    page,
+    pageSize,
+  });
+
+  const { data: tokenPrice } = useTokenPrice();
+  
+  // Fetch available chains from transfers endpoint
+  const { data: transfersData } = useTransfers({ chainId: 0, page: 1, pageSize: 1 });
+  const availableChains = transfersData?.availableChains || [];
+
+  const holders = holdersData?.data || [];
 
   // Load holders when the page mounts
   useEffect(() => {
-    if (holders.length === 0 && !loadingHolders && !holdersError) {
-      refreshHolders();
-    }
-  }, [holders.length, loadingHolders, holdersError, refreshHolders]);
+    // React Query handles fetching automatically, but if we need manual refresh on mount:
+    // refreshHolders();
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -41,17 +49,17 @@ export const HoldersPage: React.FC = () => {
 
       <HoldersTab
         holders={holders}
-        holdersChainId={holdersChainId}
-        holdersPage={holdersPage}
-        holdersPageSize={holdersPageSize}
+        holdersChainId={chainId}
+        holdersPage={page}
+        holdersPageSize={pageSize}
         loadingHolders={loadingHolders}
-        holdersError={holdersError}
+        holdersError={holdersError ? { message: holdersError.message } : null}
         holderSearch={holderSearch}
-        tokenPrice={tokenPrice}
+        tokenPrice={tokenPrice || null}
         availableChains={availableChains}
-        setHoldersChainId={setHoldersChainId}
-        setHoldersPage={setHoldersPage}
-        setHoldersPageSize={setHoldersPageSize}
+        setHoldersChainId={setChainId}
+        setHoldersPage={setPage}
+        setHoldersPageSize={setPageSize}
         setHolderSearch={setHolderSearch}
         refreshHolders={refreshHolders}
         exportHoldersToCSV={exportHoldersToCSV}

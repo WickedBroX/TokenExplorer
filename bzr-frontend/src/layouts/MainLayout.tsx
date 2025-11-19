@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Menu, X, Loader2, Send, Mail } from 'lucide-react';
 import { validateSearchQuery, detectSearchType, saveRecentSearch, type SearchResult } from '../utils/searchUtils';
 import { TransactionModal } from '../components/TransactionModal';
+import { TokenOverviewHeader } from '../components/TokenOverviewHeader';
 import type { Transfer } from '../types/api';
 
 const navItems = [
@@ -82,7 +83,7 @@ export const MainLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
       {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shadow-sm transition-all duration-200">
+      <header className="sticky top-0 z-40 w-full border-b border-gray-200 bg-white shadow-sm transition-all duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between gap-4">
             {/* Logo */}
@@ -202,7 +203,8 @@ export const MainLayout: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-grow">
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <TokenOverviewHeader />
         <Outlet />
       </main>
 

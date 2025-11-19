@@ -1,12 +1,9 @@
 import React from 'react';
 import { BarChart2 } from 'lucide-react';
-import { useTokenData } from '../hooks/useTokenData';
 import { WorldClassAnalyticsTab } from '../components/WorldClassAnalyticsTab';
 
 export const AnalyticsPage: React.FC = () => {
-  const { transfersQuery } = useTokenData();
-
-  const chainId = transfersQuery.chainId === 0 ? 'all' : String(transfersQuery.chainId);
+  const chainId = 'all';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
