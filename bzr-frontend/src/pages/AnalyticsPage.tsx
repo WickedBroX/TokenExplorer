@@ -3,8 +3,6 @@ import { BarChart2 } from 'lucide-react';
 import { WorldClassAnalyticsTab } from '../components/WorldClassAnalyticsTab';
 
 export const AnalyticsPage: React.FC = () => {
-  const chainId = 'all';
-
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -14,7 +12,7 @@ export const AnalyticsPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
       </div>
 
-      <WorldClassAnalyticsTab chainId={chainId} />
+      <WorldClassAnalyticsTab />
     </div>
   );
 };

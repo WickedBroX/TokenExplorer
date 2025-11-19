@@ -35,5 +35,7 @@ export const useTransfers = (params: UseTransfersParams) => {
   return useQuery({
     queryKey: ['transfers', params],
     queryFn: () => fetchTransfers(params),
+    staleTime: 0, // Always consider data stale
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 };
