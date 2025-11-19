@@ -9,7 +9,6 @@ import { getExplorerUrl, truncateHash, formatUsdValue } from '../utils/formatter
 
 export const HoldersPage: React.FC = () => {
   const [chainId, setChainId] = useState(1);
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [holderSearch, setHolderSearch] = useState('');
 
@@ -20,7 +19,7 @@ export const HoldersPage: React.FC = () => {
     refetch: refreshHolders 
   } = useHolders({
     chainId,
-    page,
+    page: 1, // Always fetch page 1
     pageSize,
   });
 
@@ -53,7 +52,7 @@ export const HoldersPage: React.FC = () => {
       <HoldersTab
         holders={holders}
         holdersChainId={chainId}
-        holdersPage={page}
+        holdersPage={1}
         holdersPageSize={pageSize}
         loadingHolders={loadingHolders}
         holdersError={holdersError ? { message: holdersError.message } : null}
@@ -61,7 +60,6 @@ export const HoldersPage: React.FC = () => {
         tokenPrice={tokenPrice || null}
         availableChains={availableChains}
         setHoldersChainId={setChainId}
-        setHoldersPage={setPage}
         setHoldersPageSize={setPageSize}
         setHolderSearch={setHolderSearch}
         refreshHolders={refreshHolders}

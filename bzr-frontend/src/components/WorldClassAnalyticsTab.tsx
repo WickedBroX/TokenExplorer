@@ -10,17 +10,27 @@ interface DataPoint {
   activeUsers: number;
 }
 
-// Mock Data Generator (Since we don't have the real endpoint running yet)
+// Mock Data Generator with realistic patterns
 // REPLACE THIS WITH REAL API CALL LATER
 const generateMockData = (days: number): DataPoint[] => {
   return Array.from({ length: days }).map((_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (days - i - 1));
+    
+    // Create a trend that increases over time with some variance
+    const trendFactor = i / days; // 0 to 1 progression
+    const dayVariance = Math.sin(i * 0.5) * 0.2; // Cyclical variance
+    
+    // Different base values for different time ranges to make them distinguishable
+    const baseTransfers = days === 7 ? 300 : days === 30 ? 250 : 200;
+    const baseVolume = days === 7 ? 35000 : days === 30 ? 30000 : 25000;
+    const baseUsers = days === 7 ? 120 : days === 30 ? 100 : 80;
+    
     return {
       date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      transfers: Math.floor(Math.random() * 500) + 100,
-      volume: Math.floor(Math.random() * 50000) + 10000,
-      activeUsers: Math.floor(Math.random() * 200) + 50,
+      transfers: Math.floor(baseTransfers + (baseTransfers * trendFactor * 0.5) + (Math.random() * 100 - 50) + (dayVariance * 100)),
+      volume: Math.floor(baseVolume + (baseVolume * trendFactor * 0.3) + (Math.random() * 5000 - 2500) + (dayVariance * 3000)),
+      activeUsers: Math.floor(baseUsers + (baseUsers * trendFactor * 0.4) + (Math.random() * 30 - 15) + (dayVariance * 20)),
     };
   });
 };
@@ -147,7 +157,9 @@ export function WorldClassAnalyticsTab() {
         <div>
           <h4 className="text-sm font-bold text-blue-900">Insight</h4>
           <p className="text-sm text-blue-700 mt-1">
-            Transaction volume has increased by <span className="font-bold">12%</span> over the last 7 days compared to the previous period.
+            {timeRange === '7d' && 'Activity shows strong growth over the past week with an upward trend in daily transactions.'}
+            {timeRange === '30d' && 'Steady transaction volume increase over the last 30 days, indicating healthy network usage.'}
+            {timeRange === '90d' && 'Long-term analysis shows consistent growth pattern over the past 3 months with stable user engagement.'}
           </p>
         </div>
       </div>

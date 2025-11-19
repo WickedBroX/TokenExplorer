@@ -15,7 +15,6 @@ interface HoldersTabProps {
   tokenPrice: { priceUsd: number | null } | null;
   availableChains: Array<{ id: number; name: string }>;
   setHoldersChainId: (id: number) => void;
-  setHoldersPage: (page: number) => void;
   setHoldersPageSize: (size: number) => void;
   setHolderSearch: (search: string) => void;
   refreshHolders: () => void;
@@ -36,7 +35,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
   tokenPrice,
   availableChains,
   setHoldersChainId,
-  setHoldersPage,
   setHoldersPageSize,
   setHolderSearch,
   refreshHolders,
@@ -209,23 +207,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                 <option value={50}>50</option>
               </select>
               <span className="text-sm text-gray-600">per page</span>
-           </div>
-
-           <div className="flex gap-2">
-              <button
-                onClick={() => setHoldersPage(Math.max(1, holdersPage - 1))}
-                disabled={holdersPage === 1 || loadingHolders}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setHoldersPage(holdersPage + 1)}
-                disabled={sortedHolders.length < holdersPageSize || loadingHolders}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
            </div>
         </div>
       </div>
