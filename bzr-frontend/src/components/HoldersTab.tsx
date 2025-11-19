@@ -349,7 +349,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
               {sortedByBalance.slice(0, 3).map((holder, index) => {
                 const rank = index + 1;
                 const style = getPodiumStyle(rank);
-                const percentage = (holder.balance / MAX_SUPPLY) * 100;
                 const usdValue = tokenPrice?.priceUsd && holder.balance ? holder.balance * tokenPrice.priceUsd : null;
                 const tier = getTier(holder.balance);
 
@@ -408,18 +407,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                             </div>
                           </div>
                         )}
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">% of Max Supply</div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all"
-                              style={{ width: `${Math.min(100, percentage)}%` }}
-                            />
-                          </div>
-                          <div className="text-xs text-gray-700 mt-1 font-semibold">
-                            {percentage.toFixed(4)}%
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
