@@ -66,6 +66,19 @@ export const TransfersPage: React.FC = () => {
 
   const searchParams = getSearchParams(searchQuery);
 
+  // Auto-scroll to transfers section when search params are present
+  useEffect(() => {
+    if (searchParams.address || searchParams.block || searchParams.hash) {
+      // Small timeout to ensure DOM is ready and data fetching has started
+      setTimeout(() => {
+        const element = document.getElementById("transfers-section");
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, [searchParams.address, searchParams.block, searchParams.hash]);
+
   // Sync URL params to state
   useEffect(() => {
     const addr = urlSearchParams.get("address");
