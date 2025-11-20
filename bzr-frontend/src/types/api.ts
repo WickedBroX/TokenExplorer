@@ -175,6 +175,8 @@ export interface FinalityResponse {
 export interface Holder {
   TokenHolderAddress: string;
   TokenHolderQuantity: string;
+  chainId?: number;
+  chainName?: string;
 }
 
 export interface HoldersResponse {

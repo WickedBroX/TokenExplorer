@@ -21,6 +21,8 @@ export const useHolders = (params: UseHoldersParams) => {
   return useQuery({
     queryKey: ['holders', params],
     queryFn: () => fetchHolders(params),
-    placeholderData: (previousData) => previousData,
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache old queries - immediately garbage collect when query becomes inactive
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 };
