@@ -100,9 +100,18 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
             </select>
             <div className="hidden sm:flex items-center px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-600 whitespace-nowrap">
               <span className="font-medium text-gray-900 mr-1">
-                {holders.length}
+                {filteredHolders.length}
               </span>{" "}
-              Holders Loaded
+              {holderSearch ? (
+                <span className="flex items-center gap-1">
+                  <span>Filtered</span>
+                  <span className="text-gray-400">
+                    ({holders.length} total)
+                  </span>
+                </span>
+              ) : (
+                <span>Holders Loaded</span>
+              )}
             </div>
           </div>
 

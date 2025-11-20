@@ -1,40 +1,86 @@
-# TokenExplorer
+# BZR Token Explorer
 
-A comprehensive blockchain explorer and analytics platform for the Bazaars (BZR) token.
+A comprehensive blockchain explorer for the BZR token across multiple chains (Ethereum, Polygon, BNB Chain, Arbitrum, Base, Avalanche, Optimism, Fantom, Celo, and Cronos).
 
-## Project Structure
+## Features
 
-- **bzr-frontend/**: React + TypeScript + Vite frontend application.
-- **bzr-backend/**: Node.js + Express backend API.
-- **docs/**: Project documentation and archives.
-  - **docs/archive/**: Historical documentation, phase completion logs, and analysis reports.
+- **Multi-chain Support**: Track BZR token across 10+ blockchain networks
+- **Real-time Analytics**: View transfers, holders, and token statistics
+- **Advanced Search**: Search by address, transaction hash, or block number
+- **Interactive Charts**: Visualize token activity and network health
+- **Responsive Design**: Optimized for desktop and mobile viewing
 
-## Deployment
+## Tech Stack
 
 ### Frontend
-To deploy the frontend to production:
-```bash
-./deploy-frontend.sh
-```
+
+- React 19 with TypeScript
+- Vite (Rolldown) for blazing fast builds
+- TailwindCSS for styling
+- React Query for data fetching
+- Recharts for data visualization
 
 ### Backend
-To deploy the backend to production:
-```bash
-./deploy-backend.sh
-```
 
-## Development
+- Node.js with Express 5
+- PostgreSQL for persistent storage
+- Multi-provider architecture (Etherscan, Cronos APIs)
+- Response caching and rate limiting
 
-### Frontend
+## Quick Start
+
+### Prerequisites
+
+- Node.js 20+
+- PostgreSQL (optional, for persistent storage)
+- API Keys (Etherscan, Cronos)
+
+### Development
+
+**Frontend:**
+
 ```bash
 cd bzr-frontend
 npm install
 npm run dev
 ```
 
-### Backend
+**Backend:**
+
 ```bash
 cd bzr-backend
+cp .env.example .env
+# Add your API keys to .env
 npm install
+npm run migrate
 npm run dev
 ```
+
+## Deployment
+
+See [docs/deployment/DEPLOYMENT-GUIDE.md](docs/deployment/DEPLOYMENT-GUIDE.md) for detailed deployment instructions.
+
+Quick deploy:
+
+```bash
+./scripts/deploy-backend.sh
+./scripts/deploy-frontend.sh
+```
+
+## Documentation
+
+- [Full Documentation](docs/README.md)
+- [Deployment Guide](docs/deployment/DEPLOYMENT-GUIDE.md)
+- [Feature Documentation](docs/features/)
+
+## Scripts
+
+All deployment and utility scripts are in the `/scripts/` directory.
+
+## License
+
+Proprietary - All rights reserved
+
+## Support
+
+For issues or questions, please contact the development team.

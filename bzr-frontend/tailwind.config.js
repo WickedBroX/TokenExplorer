@@ -26,4 +26,12 @@ export default {
     },
   },
   plugins: [],
+  // Explicitly set purge to prevent warnings
+  purge: {
+    enabled: process.env.NODE_ENV === 'production',
+    content: [
+      "./index.html",
+      "./src/**/*.{js,ts,jsx,tsx}",
+    ],
+  },
 };

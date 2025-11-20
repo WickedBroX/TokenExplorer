@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Copy,
   Check,
@@ -14,44 +14,103 @@ import { useTokenStats } from "../hooks/api/useTokenStats";
 import { useTokenPrice } from "../hooks/api/useTokenPrice";
 import { useTransfers } from "../hooks/api/useTransfers";
 import { formatUsdValue } from "../utils/formatters";
+import { BZR_TOKEN_ADDRESS, SOCIAL_LINKS } from "../constants/index";
 
-const SOCIAL_LINKS = [
-  { name: "Website", icon: Globe, url: "https://bazaars.app" },
-  { name: "Twitter", icon: Twitter, url: "https://twitter.com/BazaarsBzr" },
-  { name: "Telegram", icon: Send, url: "https://t.me/Bazaarsapp" },
-  { name: "Whitepaper", icon: FileText, url: "https://bazaars.app/whitepaper" },
-];
+// Utility function for consistent supply formatting
+const formatSupply = (value: number): string => {
+  return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
+};
 
-export const TokenOverviewHeader = () => {
-  const { data: info, isLoading: loadingInfo } = useTokenInfo();
-  const { data: stats } = useTokenStats();
-  const { data: tokenPrice } = useTokenPrice();
-  const { data: transfersData } = useTransfers({
+// Social link icons mapping
+const SOCIAL_ICONS = {
+  Website: Globe,
+  Twitter: Twitter,
+  Telegram: Send,
+  Whitepaper: FileText,
+} as const;
+
+export const TokenOverviewHeader: React.FC = () => {
+  const {
+    data: info,
+    isLoading: loadingInfo,
+    error: infoError,
+  } = useTokenInfo();
+  const { data: stats, error: statsError } = useTokenStats();
+  const {
+    data: tokenPrice,
+    isLoading: loadingPrice,
+    error: priceError,
+  } = useTokenPrice();
+  const { data: transfersData, error: transfersError } = useTransfers({
     chainId: 0,
     page: 1,
     pageSize: 1,
   });
-  const transfersTotals = transfersData?.totals;
 
   const [copied, setCopied] = useState(false);
-  const BZR_ADDRESS = "0x85Cb098bdcD3Ca929d2cD18Fc7A2669fF0362242";
+  const timeoutRef = useRef<number | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(BZR_ADDRESS);
+    navigator.clipboard.writeText(BZR_TOKEN_ADDRESS);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
-  // Calculate Market Cap
-  const totalSupply = info?.formattedTotalSupply
-    ? Number(info.formattedTotalSupply)
-    : 555555555; // Fallback if loading
-  const price = tokenPrice?.priceUsd || 0;
-  const marketCap = totalSupply * price;
+  // Memoize calculations
+  const totalSupply = useMemo(() => {
+    return info?.formattedTotalSupply ? Number(info.formattedTotalSupply) : 0;
+  }, [info?.formattedTotalSupply]);
 
-  if (loadingInfo && !tokenPrice) {
+  const circulatingSupply = useMemo(() => {
+    return info?.formattedCirculatingSupply
+      ? Number(info.formattedCirculatingSupply)
+      : totalSupply;
+  }, [info?.formattedCirculatingSupply, totalSupply]);
+
+  const price = tokenPrice?.priceUsd || 0;
+
+  const marketCap = useMemo(() => {
+    return circulatingSupply * price;
+  }, [circulatingSupply, price]);
+
+  const transfersTotals = transfersData?.totals;
+
+  // Fix loading condition - should be OR not AND
+  const isLoading = loadingInfo || loadingPrice;
+  const hasError = infoError || priceError || statsError || transfersError;
+
+  if (isLoading) {
     return (
       <div className="w-full h-64 bg-gray-100 animate-pulse rounded-xl mb-8" />
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="w-full mb-8">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-800 font-medium mb-2">
+            Error loading token data
+          </p>
+          <p className="text-sm text-red-600">
+            {(infoError as Error)?.message ||
+              (priceError as Error)?.message ||
+              "Please try again later"}
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -80,7 +139,11 @@ export const TokenOverviewHeader = () => {
 
               <div>
                 <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
-                  Market Cap <Info className="w-3 h-3" />
+                  Market Cap
+                  <Info
+                    className="w-3 h-3"
+                    aria-label="Market capitalization is the total value of all tokens in circulation"
+                  />
                 </div>
                 <div className="text-2xl font-bold text-gray-900">
                   {formatUsdValue(marketCap)}
@@ -95,10 +158,7 @@ export const TokenOverviewHeader = () => {
                   Total Supply:
                 </span>
                 <span className="font-medium text-gray-900">
-                  {totalSupply.toLocaleString("en-US", {
-                    maximumFractionDigits: 0,
-                  })}{" "}
-                  BZR
+                  {formatSupply(totalSupply)} BZR
                 </span>
               </div>
 
@@ -107,12 +167,13 @@ export const TokenOverviewHeader = () => {
                   Circulating Supply:
                 </span>
                 <span className="font-medium text-gray-900 flex items-center gap-1">
-                  {(info?.formattedCirculatingSupply
-                    ? Number(info.formattedCirculatingSupply)
-                    : totalSupply
-                  ).toLocaleString("en-US", { maximumFractionDigits: 0 })}{" "}
-                  BZR
-                  <Check className="w-3 h-3 text-blue-500" />
+                  {formatSupply(circulatingSupply)} BZR
+                  {info?.formattedCirculatingSupply && (
+                    <Check
+                      className="w-3 h-3 text-blue-500"
+                      aria-label="Verified"
+                    />
+                  )}
                 </span>
               </div>
 
@@ -152,16 +213,17 @@ export const TokenOverviewHeader = () => {
               </div>
               <div className="flex items-center gap-2 group min-w-0">
                 <a
-                  href={`https://etherscan.io/address/${BZR_ADDRESS}`}
+                  href={`https://etherscan.io/address/${BZR_TOKEN_ADDRESS}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm text-blue-600 font-mono truncate hover:text-blue-800 transition-colors flex-1 min-w-0"
                 >
-                  {BZR_ADDRESS}
+                  {BZR_TOKEN_ADDRESS}
                 </a>
                 <button
                   onClick={handleCopy}
                   className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-all flex-shrink-0"
+                  aria-label={copied ? "Address copied" : "Copy address"}
                 >
                   {copied ? (
                     <Check className="w-4 h-4 text-green-600" />
@@ -178,7 +240,7 @@ export const TokenOverviewHeader = () => {
                 Official Site
               </div>
               <a
-                href="https://bazaars.app"
+                href={SOCIAL_LINKS[0].url}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
@@ -193,18 +255,23 @@ export const TokenOverviewHeader = () => {
                 Social Profiles
               </div>
               <div className="flex gap-2">
-                {SOCIAL_LINKS.map((link) => (
-                  <a
-                    key={link.name}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all"
-                    title={link.name}
-                  >
-                    <link.icon className="w-4 h-4" />
-                  </a>
-                ))}
+                {SOCIAL_LINKS.map((link: { name: string; url: string }) => {
+                  const IconComponent =
+                    SOCIAL_ICONS[link.name as keyof typeof SOCIAL_ICONS];
+                  return (
+                    <a
+                      key={link.name}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all"
+                      title={link.name}
+                      aria-label={`Visit ${link.name}`}
+                    >
+                      <IconComponent className="w-4 h-4" />
+                    </a>
+                  );
+                })}
               </div>
             </div>
           </div>
