@@ -190,3 +190,31 @@ export interface HoldersResponse {
   };
   timestamp: number;
 }
+
+export interface AnalyticsDataPoint {
+  date: string;
+  displayDate: string;
+  count: number;
+  volume: number;
+  uniqueAddresses: number;
+}
+
+export interface AnalyticsMetrics {
+  totalTransfers: number;
+  totalVolume: number;
+  avgTransferSize: number;
+  activeAddresses: number;
+}
+
+export interface AnalyticsPerformance {
+  computeTimeMs: number;
+  mode: 'persistent' | 'realtime';
+}
+
+export interface AnalyticsResponse {
+  dailyData: AnalyticsDataPoint[];
+  analyticsMetrics: AnalyticsMetrics;
+  chainId: string;
+  timeRange: string;
+  performance: AnalyticsPerformance;
+}
