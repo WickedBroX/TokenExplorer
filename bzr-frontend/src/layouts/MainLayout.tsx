@@ -21,7 +21,7 @@ import {
 } from "../utils/searchUtils";
 import { TransactionModal } from "../components/TransactionModal";
 import { TokenOverviewHeader } from "../components/TokenOverviewHeader";
-import { SOCIAL_LINKS } from "../constants/index";
+import { useAppConfig } from "../context/ConfigContext";
 import type { Transfer } from "../types/api";
 
 const navItems = [
@@ -50,6 +50,9 @@ export const MainLayout: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const { config } = useAppConfig();
+  const footerSocialLinks = config.footerSocialLinks || [];
+  const footerMenus = config.footerMenus || [];
 
   const handleSearch = async (query: string) => {
     if (!query || !query.trim()) {
@@ -257,150 +260,81 @@ export const MainLayout: React.FC = () => {
             {/* Logo and Description */}
             <div className="lg:col-span-1">
               <img
-                src="https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png"
-                alt="Bazaars Logo"
+                src={config.logoUrl}
+                alt="Logo"
                 className="h-8 w-auto mb-4"
               />
               <p className="text-sm text-gray-600 leading-relaxed">
-                Explore and track BZR token transactions across multiple
-                blockchain networks.
+                {config.aboutText}
               </p>
             </div>
 
-            {/* Markets & Data */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-                Markets & Data
-              </h3>
-              <ul className="space-y-3">
-                <li>
-                  <a
-                    href="https://coinmarketcap.com/currencies/bazaars/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center group"
-                  >
-                    <span className="group-hover:translate-x-1 transition-transform">
-                      CoinMarketCap
-                    </span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://www.coingecko.com/en/coins/bazaars"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center group"
-                  >
-                    <span className="group-hover:translate-x-1 transition-transform">
-                      Coingecko
-                    </span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://etherscan.io/token/0x8d96b4ab6c741a4c8679ae323a100d74f085ba8f"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center group"
-                  >
-                    <span className="group-hover:translate-x-1 transition-transform">
-                      Etherscan
-                    </span>
-                  </a>
-                </li>
-              </ul>
-            </div>
+            {footerMenus.map((section) => {
+              const isCommunity = section.title?.toLowerCase() === "community";
+              const iconMap = {
+                Website: Globe,
+                Twitter: Twitter,
+                Telegram: Send,
+                Discord: DiscordIcon,
+                Medium: BookOpen,
+                Facebook: FacebookIcon,
+                Instagram: InstagramIcon,
+                Whitepaper: FileText,
+              } as Record<string, React.ElementType>;
 
-            {/* Exchanges */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-                Exchanges
-              </h3>
-              <ul className="space-y-3">
-                <li>
-                  <a
-                    href="https://www.bitmart.com/trade/en-US?symbol=BZR_USDT"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center group"
-                  >
-                    <span className="group-hover:translate-x-1 transition-transform">
-                      Bitmart
-                    </span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://www.coinstore.com/#/spot/bzrusdt"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center group"
-                  >
-                    <span className="group-hover:translate-x-1 transition-transform">
-                      Coinstore
-                    </span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://www.mexc.com/exchange/BZR_USDT"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center group"
-                  >
-                    <span className="group-hover:translate-x-1 transition-transform">
-                      MEXC
-                    </span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Community */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-                Community
-              </h3>
-              <ul className="space-y-3">
-                {SOCIAL_LINKS.map((link) => {
-                  const IconMap = {
-                    Website: Globe,
-                    Twitter: Twitter,
-                    Telegram: Send,
-                    Discord: DiscordIcon,
-                    Medium: BookOpen,
-                    Facebook: FacebookIcon,
-                    Instagram: InstagramIcon,
-                    Whitepaper: FileText,
-                  } as Record<string, React.ElementType>;
-
-                  const Icon = IconMap[link.name] || Globe;
-
-                  return (
-                    <li key={link.name}>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span className="group-hover:translate-x-1 transition-transform">
-                          {link.name}
-                        </span>
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+              return (
+                <div key={section.title}>
+                  <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
+                    {section.title}
+                  </h3>
+                  {isCommunity ? (
+                    <ul className="space-y-3">
+                      {footerSocialLinks.map((link) => {
+                        const Icon = iconMap[link.name] || Globe;
+                        return (
+                          <li key={`${section.title}-${link.name}`}>
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
+                            >
+                              <Icon className="h-4 w-4" />
+                              <span className="group-hover:translate-x-1 transition-transform">
+                                {link.name}
+                              </span>
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <ul className="space-y-3">
+                      {(section.links || []).map((link) => (
+                        <li key={`${section.title}-${link.label}`}>
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center group"
+                          >
+                            <span className="group-hover:translate-x-1 transition-transform">
+                              {link.label}
+                            </span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="pt-8 mt-8 border-t border-gray-200">
             <div className="flex justify-center items-center">
               <p className="text-sm text-gray-500">
-                © 2025 Bazaars. All rights reserved.
+                {config.copyrightText || "© 2025 Bazaars. All rights reserved."}
               </p>
             </div>
           </div>

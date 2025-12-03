@@ -1,14 +1,17 @@
-export const BZR_TOKEN_ADDRESS = '0x85Cb098bdcD3Ca929d2cD18Fc7A2669fF0362242';
+import { DEFAULT_APP_CONFIG } from './constants/index';
 
-export const contractLinks = [
-  { name: 'Ethereum', url: `https://etherscan.io/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'Polygon', url: `https://polygonscan.com/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'BSC', url: `https://bscscan.com/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'Arbitrum', url: `https://arbiscan.io/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'Optimism', url: `https://optimistic.etherscan.io/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'Avalanche', url: `https://subnets.avax.network/c-chain/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'Base', url: `https://basescan.org/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'zkSync', url: `https://explorer.zksync.io/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'Mantle', url: `https://mantlescan.xyz/address/${BZR_TOKEN_ADDRESS}` },
-  { name: 'Cronos', url: `https://cronoscan.com/address/${BZR_TOKEN_ADDRESS}` },
-];
+export const buildContractLinks = (tokenAddress?: string) => {
+  const address = tokenAddress || DEFAULT_APP_CONFIG.tokenAddress;
+  return [
+    { name: 'Ethereum', url: `https://etherscan.io/address/${address}` },
+    { name: 'Polygon', url: `https://polygonscan.com/address/${address}` },
+    { name: 'BSC', url: `https://bscscan.com/address/${address}` },
+    { name: 'Arbitrum', url: `https://arbiscan.io/address/${address}` },
+    { name: 'Optimism', url: `https://optimistic.etherscan.io/address/${address}` },
+    { name: 'Avalanche', url: `https://subnets.avax.network/c-chain/address/${address}` },
+    { name: 'Base', url: `https://basescan.org/address/${address}` },
+    { name: 'zkSync', url: `https://explorer.zksync.io/address/${address}` },
+    { name: 'Mantle', url: `https://mantlescan.xyz/address/${address}` },
+    { name: 'Cronos', url: `https://cronoscan.com/address/${address}` },
+  ];
+};

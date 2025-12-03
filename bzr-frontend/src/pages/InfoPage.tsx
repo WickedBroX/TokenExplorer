@@ -5,10 +5,10 @@ import { useTokenStats } from '../hooks/api/useTokenStats';
 import { ContractAddresses } from '../components/ContractAddresses';
 import { CommunityLinks } from '../components/CommunityLinks';
 import { MarketData } from '../components/MarketData';
-
-const BZR_TOKEN_ADDRESS = '0x85Cb098bdcD3Ca929d2cD18Fc7A2669fF0362242';
+import { useAppConfig } from '../context/ConfigContext';
 
 export const InfoPage: React.FC = () => {
+  const { config } = useAppConfig();
   const { 
     data: info, 
     isLoading: loadingInfo, 
@@ -57,7 +57,7 @@ export const InfoPage: React.FC = () => {
         
         {/* Right column - Contract Addresses (takes 1 column) */}
         <div>
-          <ContractAddresses tokenAddress={BZR_TOKEN_ADDRESS} />
+          <ContractAddresses tokenAddress={config.tokenAddress} />
         </div>
       </div>
     </div>

@@ -17,7 +17,7 @@ import { useTokenStats } from "../hooks/api/useTokenStats";
 import { useTokenPrice } from "../hooks/api/useTokenPrice";
 import { useTransfers } from "../hooks/api/useTransfers";
 import { formatUsdValue } from "../utils/formatters";
-import { BZR_TOKEN_ADDRESS, SOCIAL_LINKS } from "../constants/index";
+import { useAppConfig } from "../context/ConfigContext";
 
 // Utility function for consistent supply formatting
 const formatSupply = (value: number): string => {
@@ -67,6 +67,7 @@ export const TokenOverviewHeader: React.FC = () => {
 
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+  const { config } = useAppConfig();
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -78,7 +79,7 @@ export const TokenOverviewHeader: React.FC = () => {
   }, []);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(BZR_TOKEN_ADDRESS);
+    navigator.clipboard.writeText(config.tokenAddress);
     setCopied(true);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -104,6 +105,8 @@ export const TokenOverviewHeader: React.FC = () => {
   }, [circulatingSupply, price]);
 
   const transfersTotals = transfersData?.totals;
+  const socialLinks = config.infoLinks || [];
+  const tokenAddress = config.tokenAddress;
 
   // Fix loading condition - should be OR not AND
   const isLoading = loadingInfo || loadingPrice;
@@ -225,12 +228,12 @@ export const TokenOverviewHeader: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 group min-w-0">
                 <a
-                  href={`https://etherscan.io/address/${BZR_TOKEN_ADDRESS}`}
+                  href={`https://etherscan.io/address/${tokenAddress}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm text-blue-600 font-mono truncate hover:text-blue-800 transition-colors flex-1 min-w-0"
                 >
-                  {BZR_TOKEN_ADDRESS}
+                  {tokenAddress}
                 </a>
                 <button
                   onClick={handleCopy}
@@ -252,12 +255,13 @@ export const TokenOverviewHeader: React.FC = () => {
                 Official Site
               </div>
               <a
-                href={SOCIAL_LINKS[0].url}
+                href={(socialLinks.find((link) => link.name.toLowerCase() === "website") || socialLinks[0] || { url: "#" }).url}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
               >
-                bazaars.app <ExternalLink className="w-3 h-3 text-gray-400" />
+                {(socialLinks.find((link) => link.name.toLowerCase() === "website") || socialLinks[0] || { name: "Website" }).name}
+                <ExternalLink className="w-3 h-3 text-gray-400" />
               </a>
             </div>
 
@@ -266,30 +270,22 @@ export const TokenOverviewHeader: React.FC = () => {
               <div className="text-xs text-gray-500 uppercase tracking-wide mb-3">
                 Social Profiles
               </div>
-              <div className="flex gap-2">
-                {SOCIAL_LINKS.filter((link) =>
-                  [
-                    "Website",
-                    "Twitter",
-                    "Telegram",
-                    "Discord",
-                    "Medium",
-                    "Whitepaper",
-                  ].includes(link.name)
-                ).map((link: { name: string; url: string }) => {
+              <div className="flex flex-wrap gap-2">
+                {socialLinks.map((link: { name: string; url: string }) => {
                   const IconComponent =
-                    SOCIAL_ICONS[link.name as keyof typeof SOCIAL_ICONS];
+                    SOCIAL_ICONS[link.name as keyof typeof SOCIAL_ICONS] || Globe;
                   return (
                     <a
-                      key={link.name}
+                      key={link.name + link.url}
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all"
+                      className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center gap-1"
                       title={link.name}
                       aria-label={`Visit ${link.name}`}
                     >
                       <IconComponent className="w-4 h-4" />
+                      <span className="text-xs font-medium">{link.name}</span>
                     </a>
                   );
                 })}

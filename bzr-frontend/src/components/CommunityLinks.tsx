@@ -1,65 +1,86 @@
 import { Users, ExternalLink } from 'lucide-react';
+import { useAppConfig } from '../context/ConfigContext';
+
+type SocialIcon =
+  | 'twitter'
+  | 'telegram'
+  | 'discord'
+  | 'medium'
+  | 'facebook'
+  | 'instagram';
 
 interface SocialLink {
   name: string;
   url: string;
-  icon: 'twitter' | 'telegram' | 'discord' | 'medium' | 'facebook' | 'instagram';
+  icon: SocialIcon;
   color: string;
   bgColor: string;
   borderColor: string;
 }
 
 export const CommunityLinks: React.FC = () => {
-  const socialLinks: SocialLink[] = [
-    {
-      name: 'Twitter',
-      url: 'https://twitter.com/BazaarsBzr',
-      icon: 'twitter',
-      color: 'text-blue-600',
-      bgColor: 'from-blue-50 to-white',
-      borderColor: 'border-blue-100 hover:border-blue-300',
-    },
-    {
-      name: 'Discord',
-      url: 'https://discord.gg/bazaars-bzr-979586323688087552',
-      icon: 'discord',
-      color: 'text-indigo-600',
-      bgColor: 'from-indigo-50 to-white',
-      borderColor: 'border-indigo-100 hover:border-indigo-300',
-    },
-    {
-      name: 'Telegram',
-      url: 'https://t.me/BazaarsOfficial',
-      icon: 'telegram',
-      color: 'text-blue-500',
-      bgColor: 'from-blue-50 to-white',
-      borderColor: 'border-blue-100 hover:border-blue-300',
-    },
-    {
-      name: 'Medium',
-      url: 'https://medium.com/@BazaarsBzr',
-      icon: 'medium',
-      color: 'text-gray-700',
-      bgColor: 'from-gray-50 to-white',
-      borderColor: 'border-gray-100 hover:border-gray-300',
-    },
-    {
-      name: 'Facebook',
-      url: 'https://www.facebook.com/Bazaarsapp/',
-      icon: 'facebook',
-      color: 'text-blue-700',
-      bgColor: 'from-blue-50 to-white',
-      borderColor: 'border-blue-100 hover:border-blue-300',
-    },
-    {
-      name: 'Instagram',
-      url: 'https://www.instagram.com/bazaars.app/',
-      icon: 'instagram',
-      color: 'text-pink-600',
-      bgColor: 'from-pink-50 to-white',
-      borderColor: 'border-pink-100 hover:border-pink-300',
-    },
-  ];
+  const { config } = useAppConfig();
+
+  const getStyleForLink = (name: string): Omit<SocialLink, 'name' | 'url'> => {
+    const normalized = name.toLowerCase();
+    switch (normalized) {
+      case 'twitter':
+        return {
+          icon: 'twitter',
+          color: 'text-blue-600',
+          bgColor: 'from-blue-50 to-white',
+          borderColor: 'border-blue-100 hover:border-blue-300',
+        };
+      case 'telegram':
+        return {
+          icon: 'telegram',
+          color: 'text-blue-500',
+          bgColor: 'from-blue-50 to-white',
+          borderColor: 'border-blue-100 hover:border-blue-300',
+        };
+      case 'discord':
+        return {
+          icon: 'discord',
+          color: 'text-indigo-600',
+          bgColor: 'from-indigo-50 to-white',
+          borderColor: 'border-indigo-100 hover:border-indigo-300',
+        };
+      case 'medium':
+        return {
+          icon: 'medium',
+          color: 'text-gray-700',
+          bgColor: 'from-gray-50 to-white',
+          borderColor: 'border-gray-100 hover:border-gray-300',
+        };
+      case 'facebook':
+        return {
+          icon: 'facebook',
+          color: 'text-blue-700',
+          bgColor: 'from-blue-50 to-white',
+          borderColor: 'border-blue-100 hover:border-blue-300',
+        };
+      case 'instagram':
+        return {
+          icon: 'instagram',
+          color: 'text-pink-600',
+          bgColor: 'from-pink-50 to-white',
+          borderColor: 'border-pink-100 hover:border-pink-300',
+        };
+      default:
+        return {
+          icon: 'twitter',
+          color: 'text-blue-600',
+          bgColor: 'from-blue-50 to-white',
+          borderColor: 'border-blue-100 hover:border-blue-300',
+        };
+    }
+  };
+
+  const socialLinks: SocialLink[] = (config.footerSocialLinks || []).map((link) => ({
+    name: link.name,
+    url: link.url,
+    ...getStyleForLink(link.name),
+  }));
 
   const renderIcon = (icon: string) => {
     switch (icon) {

@@ -4,10 +4,12 @@ import { TransfersPage } from './pages/TransfersPage';
 import { HoldersPage } from './pages/HoldersPage';
 import { InfoPage } from './pages/InfoPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { AdminPage } from './pages/AdminPage';
 
 export default function App() {
   return (
     <Routes>
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="/" element={<MainLayout />}>
         <Route index element={<TransfersPage />} />
         <Route path="holders" element={<HoldersPage />} />
