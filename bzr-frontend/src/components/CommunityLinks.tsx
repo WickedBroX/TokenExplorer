@@ -1,8 +1,11 @@
-import { Users, ExternalLink } from 'lucide-react';
+import { Users, ExternalLink, Globe, FileText } from 'lucide-react';
+import XLogoIcon from './icons/XLogoIcon';
 import { useAppConfig } from '../context/ConfigContext';
 
 type SocialIcon =
-  | 'twitter'
+  | 'x'
+  | 'website'
+  | 'whitepaper'
   | 'telegram'
   | 'discord'
   | 'medium'
@@ -21,15 +24,39 @@ interface SocialLink {
 export const CommunityLinks: React.FC = () => {
   const { config } = useAppConfig();
 
+  const formatSocialName = (name: string) =>
+    name.toLowerCase() === 'twitter' ? 'X' : name;
+
+  const formatSocialUrl = (url: string) =>
+    typeof url === 'string'
+      ? url.replace(/https?:\/\/(www\.)?twitter\.com/gi, 'https://x.com')
+      : url;
+
   const getStyleForLink = (name: string): Omit<SocialLink, 'name' | 'url'> => {
     const normalized = name.toLowerCase();
     switch (normalized) {
-      case 'twitter':
+      case 'website':
+      case 'official site':
         return {
-          icon: 'twitter',
+          icon: 'website',
           color: 'text-blue-600',
           bgColor: 'from-blue-50 to-white',
           borderColor: 'border-blue-100 hover:border-blue-300',
+        };
+      case 'whitepaper':
+        return {
+          icon: 'whitepaper',
+          color: 'text-gray-700',
+          bgColor: 'from-gray-50 to-white',
+          borderColor: 'border-gray-200 hover:border-gray-400',
+        };
+      case 'x':
+      case 'twitter':
+        return {
+          icon: 'x',
+          color: 'text-gray-900',
+          bgColor: 'from-gray-50 to-white',
+          borderColor: 'border-gray-200 hover:border-gray-400',
         };
       case 'telegram':
         return {
@@ -68,7 +95,7 @@ export const CommunityLinks: React.FC = () => {
         };
       default:
         return {
-          icon: 'twitter',
+          icon: 'website',
           color: 'text-blue-600',
           bgColor: 'from-blue-50 to-white',
           borderColor: 'border-blue-100 hover:border-blue-300',
@@ -77,19 +104,19 @@ export const CommunityLinks: React.FC = () => {
   };
 
   const socialLinks: SocialLink[] = (config.footerSocialLinks || []).map((link) => ({
-    name: link.name,
-    url: link.url,
-    ...getStyleForLink(link.name),
+    name: formatSocialName(link.name),
+    url: formatSocialUrl(link.url),
+    ...getStyleForLink(formatSocialName(link.name)),
   }));
 
-  const renderIcon = (icon: string) => {
+  const renderIcon = (icon: SocialIcon) => {
     switch (icon) {
-      case 'twitter':
-        return (
-          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" />
-          </svg>
-        );
+      case 'website':
+        return <Globe className="w-4 h-4 text-white" />;
+      case 'whitepaper':
+        return <FileText className="w-4 h-4 text-white" />;
+      case 'x':
+        return <XLogoIcon className="w-4 h-4 text-white" />;
       case 'telegram':
         return (
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -125,10 +152,14 @@ export const CommunityLinks: React.FC = () => {
     }
   };
 
-  const getIconBgColor = (icon: string) => {
+  const getIconBgColor = (icon: SocialIcon) => {
     switch (icon) {
-      case 'twitter':
+      case 'website':
         return 'bg-blue-500';
+      case 'whitepaper':
+        return 'bg-gray-600';
+      case 'x':
+        return 'bg-black';
       case 'telegram':
         return 'bg-blue-400';
       case 'discord':

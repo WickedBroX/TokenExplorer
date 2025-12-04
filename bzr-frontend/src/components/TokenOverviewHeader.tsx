@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Copy,
   Check,
   Globe,
-  Twitter,
   Send,
   FileText,
   ExternalLink,
@@ -16,8 +16,17 @@ import { useTokenInfo } from "../hooks/api/useTokenInfo";
 import { useTokenStats } from "../hooks/api/useTokenStats";
 import { useTokenPrice } from "../hooks/api/useTokenPrice";
 import { useTransfers } from "../hooks/api/useTransfers";
+import { useMarketOverview } from "../hooks/api/useMarketOverview";
 import { formatUsdValue } from "../utils/formatters";
 import { useAppConfig } from "../context/ConfigContext";
+import XLogoIcon from "./icons/XLogoIcon";
+
+const formatSocialName = (name: string) =>
+  name.toLowerCase() === "twitter" ? "X" : name;
+const formatSocialUrl = (url?: string) =>
+  typeof url === "string"
+    ? url.replace(/https?:\/\/(www\.)?twitter\.com/gi, "https://x.com")
+    : "#";
 
 // Utility function for consistent supply formatting
 const formatSupply = (value: number): string => {
@@ -35,10 +44,107 @@ const DiscordIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const InfoPopover: React.FC<{
+  label: string;
+  content: React.ReactNode;
+}> = ({ label, content }) => {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const [positionStyle, setPositionStyle] = useState<{
+    width: number;
+    left: number;
+    top: number;
+  }>({ width: 280, left: 0, top: 0 });
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = document.createElement("div");
+    el.setAttribute("data-info-popover", "true");
+    document.body.appendChild(el);
+    setPortalEl(el);
+    return () => {
+      document.body.removeChild(el);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const updatePlacement = () => {
+      const triggerRect = triggerRef.current?.getBoundingClientRect();
+      if (!triggerRect) return;
+
+      const margin = 12;
+      const preferredWidth = Math.min(320, window.innerWidth - margin * 2);
+      const idealLeft =
+        triggerRect.left + triggerRect.width / 2 - preferredWidth / 2;
+      const clampedLeft = Math.max(
+        margin,
+        Math.min(
+          idealLeft,
+          window.innerWidth - margin - preferredWidth
+        )
+      );
+      const top = triggerRect.bottom + 8; // 8px offset below trigger
+
+      setPositionStyle({
+        width: preferredWidth,
+        left: clampedLeft,
+        top,
+      });
+    };
+
+    updatePlacement();
+    window.addEventListener("resize", updatePlacement);
+    window.addEventListener("scroll", updatePlacement, true);
+    return () => {
+      window.removeEventListener("resize", updatePlacement);
+      window.removeEventListener("scroll", updatePlacement, true);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative inline-flex" ref={triggerRef}>
+      <button
+        type="button"
+        aria-label={label}
+        className="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <Info className="w-3.5 h-3.5" />
+      </button>
+      {open && portalEl && createPortal(
+        <div
+          className="fixed z-[9999] bg-white border border-gray-200 shadow-xl rounded-2xl p-3 text-[#374151] whitespace-normal break-words font-normal tracking-[0px]"
+          style={{
+            width: `${positionStyle.width}px`,
+            maxWidth: "calc(100vw - 24px)",
+            left: `${positionStyle.left}px`,
+            top: `${positionStyle.top}px`,
+            fontSize: "11px",
+            lineHeight: "16px",
+            fontWeight: 400,
+          }}
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
+          {content}
+        </div>,
+        portalEl
+      )}
+    </div>
+  );
+};
+
 // Social link icons mapping
 const SOCIAL_ICONS = {
   Website: Globe,
-  Twitter: Twitter,
+  X: XLogoIcon,
+  Twitter: XLogoIcon,
   Telegram: Send,
   Discord: DiscordIcon,
   Medium: BookOpen,
@@ -59,6 +165,11 @@ export const TokenOverviewHeader: React.FC = () => {
     isLoading: loadingPrice,
     error: priceError,
   } = useTokenPrice();
+  const {
+    data: marketOverview,
+    isLoading: loadingMarket,
+    error: marketError,
+  } = useMarketOverview();
   const { data: transfersData, error: transfersError } = useTransfers({
     chainId: 0,
     page: 1,
@@ -98,23 +209,53 @@ export const TokenOverviewHeader: React.FC = () => {
       : totalSupply;
   }, [info?.formattedCirculatingSupply, totalSupply]);
 
-  const price = tokenPrice?.priceUsd || 0;
+  const price = marketOverview?.priceUsd ?? tokenPrice?.priceUsd ?? 0;
+  const athUsd = marketOverview?.athUsd ?? null;
+  const atlUsd = marketOverview?.atlUsd ?? null;
+  const athChange = marketOverview?.athChangePercent ?? null;
+  const atlChange = marketOverview?.atlChangePercent ?? null;
+  const athDate = marketOverview?.athDate ? new Date(marketOverview.athDate) : null;
+  const atlDate = marketOverview?.atlDate ? new Date(marketOverview.atlDate) : null;
 
   const marketCap = useMemo(() => {
+    if (marketOverview?.marketCapUsd) return marketOverview.marketCapUsd;
     return circulatingSupply * price;
-  }, [circulatingSupply, price]);
+  }, [circulatingSupply, marketOverview?.marketCapUsd, price]);
+
+  const fdv = useMemo(() => {
+    if (marketOverview?.fdvUsd) return marketOverview.fdvUsd;
+    return price * 555555555;
+  }, [marketOverview?.fdvUsd, price]);
+
+  const volume24h = marketOverview?.volume24hUsd ?? null;
+  const volumeChange24hPercent = marketOverview?.volumeChange24hPercent ?? null;
+  const volMcapRatio = marketOverview?.volMarketCapRatio ?? null;
+  const selfReportedSupply = marketOverview?.selfReportedCirculatingSupply ?? null;
 
   const transfersTotals = transfersData?.totals;
   const socialLinks = config.infoLinks || [];
   const tokenAddress = config.tokenAddress;
 
   // Fix loading condition - should be OR not AND
-  const isLoading = loadingInfo || loadingPrice;
-  const hasError = infoError || priceError || statsError || transfersError;
+  const isLoading = loadingInfo || loadingPrice || loadingMarket;
+  const hasError = infoError || priceError || statsError || transfersError || marketError;
+
+  const metricCard =
+    "rounded-2xl border border-gray-200 p-5 bg-white shadow-sm flex flex-col gap-1.5";
+  const metricCardStyle = { fontSize: "12px", lineHeight: "16px" };
+  const labelText =
+    "font-normal tracking-[0px] text-gray-600 uppercase flex items-center gap-1";
+  const labelStyle = { fontSize: "12px", lineHeight: "16px" };
+  const valueText = "font-normal text-gray-900";
+  const valueStyle = { fontSize: "12px", lineHeight: "16px" };
+  const smallNoteText = "font-normal text-gray-500";
+  const smallNoteStyle = { fontSize: "12px", lineHeight: "16px" };
+  const formatDate = (date: Date | null) =>
+    date ? date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
 
   if (isLoading) {
     return (
-      <div className="w-full h-64 bg-gray-100 animate-pulse rounded-xl mb-8" />
+      <div className="w-full h-72 bg-gray-100 animate-pulse rounded-xl mb-8" />
     );
   }
 
@@ -144,71 +285,172 @@ export const TokenOverviewHeader: React.FC = () => {
             <h2 className="text-sm font-semibold text-gray-900">Overview</h2>
           </div>
 
-          <div className="p-6 grid gap-6">
-            {/* Price Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pb-6 border-b border-gray-100">
-              <div>
-                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                  BZR PRICE
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {formatUsdValue(price)}
-                  </span>
+          <div className="p-6 grid gap-5 text-[12px] leading-[16px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>BZR Price</div>
+                <div className="flex items-center gap-3">
+                  <span className={valueText} style={valueStyle}>{formatUsdValue(price)}</span>
+                  {marketOverview?.stale && (
+                    <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full" style={valueStyle}>
+                      Stale
+                    </span>
+                  )}
                 </div>
               </div>
-
-              <div>
-                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
                   Market Cap
-                  <Info
-                    className="w-3 h-3"
-                    aria-label="Market capitalization is the total value of all tokens in circulation"
+                  <InfoPopover
+                    label="Market cap info"
+                    content={
+                      "Market cap equals price multiplied by circulating supply. If marked stale, the value uses the last good fetch or a fallback source."
+                    }
                   />
                 </div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {formatUsdValue(marketCap)}
+                <div className="flex items-center gap-2">
+                  <span className={valueText} style={valueStyle}>{formatUsdValue(marketCap)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
-              <div className="flex justify-between sm:block">
-                <span className="text-sm text-gray-500 block mb-1">
-                  Total Supply:
-                </span>
-                <span className="font-medium text-gray-900">
-                  {formatSupply(totalSupply)} BZR
-                </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Volume (24h)
+                  <InfoPopover
+                    label="24h volume info"
+                    content="24-hour trading volume across tracked markets, as reported by CoinMarketCap."
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={valueText} style={valueStyle}>{volume24h !== null ? formatUsdValue(volume24h) : "--"}</span>
+                  {volumeChange24hPercent !== null && (
+                    <span
+                      className={`font-normal ${
+                        volumeChange24hPercent >= 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                      style={valueStyle}
+                    >
+                      {volumeChange24hPercent >= 0 ? "▲" : "▼"} {Math.abs(volumeChange24hPercent).toFixed(2)}%
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="flex justify-between sm:block">
-                <span className="text-sm text-gray-500 block mb-1">
-                  Max Supply:
-                </span>
-                <span className="font-medium text-gray-900">
-                  555,555,555 BZR
-                </span>
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Fully-Diluted Value
+                  <InfoPopover
+                    label="FDV info"
+                    content="Fully diluted value (FDV) equals price multiplied by max supply. If max supply is unknown, FDV uses total supply."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>{fdv ? formatUsdValue(fdv) : "--"}</div>
               </div>
 
-              <div className="flex justify-between sm:block">
-                <span className="text-sm text-gray-500 block mb-1">
-                  Holders:
-                </span>
-                <span className="font-medium text-gray-900">
-                  {stats?.totalHolders?.toLocaleString("en-US") || "..."}
-                </span>
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Volume / Market Cap (24h)
+                  <InfoPopover
+                    label="Volume to market cap ratio"
+                    content="24-hour volume divided by market cap. Higher ratios can indicate stronger turnover."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>{volMcapRatio !== null ? `${(volMcapRatio * 100).toFixed(4)}%` : "--"}</div>
               </div>
 
-              <div className="flex justify-between sm:block">
-                <span className="text-sm text-gray-500 block mb-1">
-                  Total Transfers:
-                </span>
-                <span className="font-medium text-gray-900">
-                  {transfersTotals?.allTimeTotal?.toLocaleString("en-US") ||
-                    "..."}
-                </span>
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Holders
+                  <InfoPopover
+                    label="Holders info"
+                    content="Number of wallet addresses holding Bazaars. The list of wallet addresses is derived from the contracts of each token and the list may not be exhaustive."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>{stats?.totalHolders?.toLocaleString("en-US") || "…"}</div>
+                <div
+                  className="text-gray-500 mt-1"
+                  style={{ fontSize: "12px", lineHeight: "16px", fontWeight: 400 }}
+                >
+                  Across supported chains
+                </div>
+              </div>
+
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>All-time High</div>
+                <div className="flex items-center justify-between">
+                  <span className={valueText} style={valueStyle}>{athUsd !== null ? formatUsdValue(athUsd) : "--"}</span>
+                  {athChange !== null && (
+                    <span className={`font-normal ${athChange <= 0 ? "text-red-600" : "text-green-600"}`} style={valueStyle}>
+                      {athChange > 0 ? "+" : ""}
+                      {athChange.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+                <div className={smallNoteText} style={smallNoteStyle}>{athDate ? `On ${formatDate(athDate)}` : ""}</div>
+              </div>
+
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>All-time Low</div>
+                <div className="flex items-center justify-between">
+                  <span className={valueText} style={valueStyle}>{atlUsd !== null ? formatUsdValue(atlUsd) : "--"}</span>
+                  {atlChange !== null && (
+                    <span className={`font-normal ${atlChange >= 0 ? "text-green-600" : "text-red-600"}`} style={valueStyle}>
+                      {atlChange > 0 ? "+" : ""}
+                      {atlChange.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+                <div className={smallNoteText} style={smallNoteStyle}>{atlDate ? `On ${formatDate(atlDate)}` : ""}</div>
+              </div>
+
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Circulating Supply
+                  <InfoPopover
+                    label="Circulating supply info"
+                    content="Total supply = total coins created minus any coins that have been burned. It is comparable to outstanding shares in the stock market."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>{formatSupply(totalSupply)} BZR</div>
+              </div>
+
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Max Supply
+                  <InfoPopover
+                    label="Max supply info"
+                    content="Best approximation of the maximum coins that will ever exist, minus any coins that have been verifiably burned (theoretical max minted minus burned)."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>
+                  {marketOverview?.maxSupply ? `${formatSupply(marketOverview.maxSupply)} BZR` : "555,555,555 BZR"}
+                </div>
+              </div>
+
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Total Transfers
+                  <InfoPopover
+                    label="Total transfers info"
+                    content="Count of total token transfers."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>
+                  {transfersTotals?.allTimeTotal?.toLocaleString("en-US") || "..."}
+                </div>
+              </div>
+
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Self-reported circulating supply
+                  <InfoPopover
+                    label="Self-reported circulating supply info"
+                    content="Self-reported circulating supply as reported to CoinMarketCap. Treat with caution if flagged."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>{selfReportedSupply ? `${formatSupply(selfReportedSupply)} BZR` : "—"}</div>
               </div>
             </div>
           </div>
@@ -277,15 +519,17 @@ export const TokenOverviewHeader: React.FC = () => {
                   return (
                     <a
                       key={link.name + link.url}
-                      href={link.url}
+                      href={formatSocialUrl(link.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center gap-1"
-                      title={link.name}
-                      aria-label={`Visit ${link.name}`}
+                      title={formatSocialName(link.name)}
+                      aria-label={`Visit ${formatSocialName(link.name)}`}
                     >
                       <IconComponent className="w-4 h-4" />
-                      <span className="text-xs font-medium">{link.name}</span>
+                      <span className="text-xs font-medium">
+                        {formatSocialName(link.name)}
+                      </span>
                     </a>
                   );
                 })}

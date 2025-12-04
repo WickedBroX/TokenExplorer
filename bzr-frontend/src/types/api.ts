@@ -165,6 +165,28 @@ export interface TokenPriceResponse {
   message?: string;
 }
 
+export interface MarketOverview {
+  source: string;
+  priceUsd: number | null;
+  marketCapUsd: number | null;
+  fdvUsd: number | null;
+  volume24hUsd: number | null;
+  volumeChange24hPercent: number | null;
+  volMarketCapRatio: number | null;
+  circulatingSupply: number | null;
+  selfReportedCirculatingSupply: number | null;
+  totalSupply: number | null;
+  maxSupply: number | null;
+  athUsd?: number | null;
+  athDate?: string | null;
+  athChangePercent?: number | null;
+  atlUsd?: number | null;
+  atlDate?: string | null;
+  atlChangePercent?: number | null;
+  stale?: boolean;
+  warnings?: string[];
+}
+
 export interface FinalityResponse {
   blockNumber: number | null;
   blockNumberHex: string | null;
