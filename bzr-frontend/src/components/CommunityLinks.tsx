@@ -1,21 +1,17 @@
 import { Users, ExternalLink, Globe, FileText } from 'lucide-react';
 import XLogoIcon from './icons/XLogoIcon';
 import { useAppConfig } from '../context/ConfigContext';
-
-type SocialIcon =
-  | 'x'
-  | 'website'
-  | 'whitepaper'
-  | 'telegram'
-  | 'discord'
-  | 'medium'
-  | 'facebook'
-  | 'instagram';
+import {
+  normalizeSocialName,
+  normalizeSocialUrl,
+  resolveSocialIconKey,
+  type SocialIconKey,
+} from '../utils/social';
 
 interface SocialLink {
   name: string;
   url: string;
-  icon: SocialIcon;
+  icon: SocialIconKey;
   color: string;
   bgColor: string;
   borderColor: string;
@@ -24,71 +20,60 @@ interface SocialLink {
 export const CommunityLinks: React.FC = () => {
   const { config } = useAppConfig();
 
-  const formatSocialName = (name: string) =>
-    name.toLowerCase() === 'twitter' ? 'X' : name;
-
-  const formatSocialUrl = (url: string) =>
-    typeof url === 'string'
-      ? url.replace(/https?:\/\/(www\.)?twitter\.com/gi, 'https://x.com')
-      : url;
-
-  const getStyleForLink = (name: string): Omit<SocialLink, 'name' | 'url'> => {
-    const normalized = name.toLowerCase();
-    switch (normalized) {
+  const getStyleForLink = (icon: SocialIconKey): Omit<SocialLink, 'name' | 'url'> => {
+    switch (icon) {
       case 'website':
-      case 'official site':
         return {
-          icon: 'website',
+          icon,
           color: 'text-blue-600',
           bgColor: 'from-blue-50 to-white',
           borderColor: 'border-blue-100 hover:border-blue-300',
         };
       case 'whitepaper':
         return {
-          icon: 'whitepaper',
+          icon,
           color: 'text-gray-700',
           bgColor: 'from-gray-50 to-white',
           borderColor: 'border-gray-200 hover:border-gray-400',
         };
       case 'x':
-      case 'twitter':
         return {
-          icon: 'x',
+          icon,
           color: 'text-gray-900',
           bgColor: 'from-gray-50 to-white',
           borderColor: 'border-gray-200 hover:border-gray-400',
         };
       case 'telegram':
         return {
-          icon: 'telegram',
+          icon,
           color: 'text-blue-500',
           bgColor: 'from-blue-50 to-white',
           borderColor: 'border-blue-100 hover:border-blue-300',
         };
       case 'discord':
         return {
-          icon: 'discord',
+          icon,
           color: 'text-indigo-600',
           bgColor: 'from-indigo-50 to-white',
           borderColor: 'border-indigo-100 hover:border-indigo-300',
         };
       case 'medium':
         return {
-          icon: 'medium',
+          icon,
           color: 'text-gray-700',
           bgColor: 'from-gray-50 to-white',
           borderColor: 'border-gray-100 hover:border-gray-300',
         };
       case 'facebook':
         return {
-          icon: 'facebook',
+          icon,
           color: 'text-blue-700',
           bgColor: 'from-blue-50 to-white',
           borderColor: 'border-blue-100 hover:border-blue-300',
         };
       case 'instagram':
         return {
-          icon: 'instagram',
+          icon,
           color: 'text-pink-600',
           bgColor: 'from-pink-50 to-white',
           borderColor: 'border-pink-100 hover:border-pink-300',
@@ -104,12 +89,12 @@ export const CommunityLinks: React.FC = () => {
   };
 
   const socialLinks: SocialLink[] = (config.footerSocialLinks || []).map((link) => ({
-    name: formatSocialName(link.name),
-    url: formatSocialUrl(link.url),
-    ...getStyleForLink(formatSocialName(link.name)),
+    name: normalizeSocialName(link.name),
+    url: normalizeSocialUrl(link.url),
+    ...getStyleForLink(resolveSocialIconKey(link)),
   }));
 
-  const renderIcon = (icon: SocialIcon) => {
+  const renderIcon = (icon: SocialIconKey) => {
     switch (icon) {
       case 'website':
         return <Globe className="w-4 h-4 text-white" />;
@@ -152,7 +137,7 @@ export const CommunityLinks: React.FC = () => {
     }
   };
 
-  const getIconBgColor = (icon: SocialIcon) => {
+  const getIconBgColor = (icon: SocialIconKey) => {
     switch (icon) {
       case 'website':
         return 'bg-blue-500';

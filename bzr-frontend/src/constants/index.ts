@@ -1,24 +1,38 @@
-export const DEFAULT_APP_CONFIG = {
+import type { SocialIconKey } from '../utils/social';
+
+type SocialLinkConfig = { name: string; url: string; icon: SocialIconKey };
+type FooterMenuConfig = { title: string; links: { label: string; url: string }[] };
+type AppConfigDefaults = {
+  tokenAddress: string;
+  logoUrl: string;
+  aboutText: string;
+  copyrightText: string;
+  infoLinks: SocialLinkConfig[];
+  footerSocialLinks: SocialLinkConfig[];
+  footerMenus: FooterMenuConfig[];
+};
+
+export const DEFAULT_APP_CONFIG: AppConfigDefaults = {
   tokenAddress: '0x85Cb098bdcD3Ca929d2cD18Fc7A2669fF0362242',
   logoUrl: 'https://res.cloudinary.com/dhznjbcys/image/upload/v1762175462/BZR-SCAN-V2_iybuqz.png',
   aboutText: 'Explore and track BZR token transactions across multiple blockchain networks.',
   copyrightText: '© 2025 Bazaars. All rights reserved.',
   infoLinks: [
-    { name: 'Website', url: 'https://bazaars.app' },
-    { name: 'X', url: 'https://x.com/BazaarsBzr' },
-    { name: 'Telegram', url: 'https://t.me/Bazaarsapp' },
-    { name: 'Discord', url: 'https://discord.com/invite/bazaars-bzr-979586323688087552' },
-    { name: 'Medium', url: 'https://medium.com/@BazaarsBzr' },
-    { name: 'Facebook', url: 'https://www.facebook.com/Bazaarsapp/' },
-    { name: 'Instagram', url: 'https://www.instagram.com/bazaars.app/' },
-    { name: 'Whitepaper', url: 'https://github.com/BazaarsBZR/Whitepaper/blob/main/Bazaars.pdf' },
+    { name: 'Website', url: 'https://bazaars.app', icon: 'website' },
+    { name: 'X', url: 'https://x.com/BazaarsBzr', icon: 'x' },
+    { name: 'Telegram', url: 'https://t.me/Bazaarsapp', icon: 'telegram' },
+    { name: 'Discord', url: 'https://discord.com/invite/bazaars-bzr-979586323688087552', icon: 'discord' },
+    { name: 'Medium', url: 'https://medium.com/@BazaarsBzr', icon: 'medium' },
+    { name: 'Facebook', url: 'https://www.facebook.com/Bazaarsapp/', icon: 'facebook' },
+    { name: 'Instagram', url: 'https://www.instagram.com/bazaars.app/', icon: 'instagram' },
+    { name: 'Whitepaper', url: 'https://github.com/BazaarsBZR/Whitepaper/blob/main/Bazaars.pdf', icon: 'whitepaper' },
   ],
   footerSocialLinks: [
-    { name: 'Website', url: 'https://bazaars.app' },
-    { name: 'X', url: 'https://x.com/BazaarsBzr' },
-    { name: 'Telegram', url: 'https://t.me/Bazaarsapp' },
-    { name: 'Discord', url: 'https://discord.com/invite/bazaars-bzr-979586323688087552' },
-    { name: 'Medium', url: 'https://medium.com/@BazaarsBzr' },
+    { name: 'Website', url: 'https://bazaars.app', icon: 'website' },
+    { name: 'X', url: 'https://x.com/BazaarsBzr', icon: 'x' },
+    { name: 'Telegram', url: 'https://t.me/Bazaarsapp', icon: 'telegram' },
+    { name: 'Discord', url: 'https://discord.com/invite/bazaars-bzr-979586323688087552', icon: 'discord' },
+    { name: 'Medium', url: 'https://medium.com/@BazaarsBzr', icon: 'medium' },
   ],
   footerMenus: [
     {

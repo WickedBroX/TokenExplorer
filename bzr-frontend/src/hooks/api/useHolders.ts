@@ -1,14 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import type { HoldersResponse } from '../../types/api';
+import { API_BASE_URL } from '../../utils/api';
 
 interface UseHoldersParams {
   chainId: number;
   page: number;
   pageSize: number;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 const fetchHolders = async ({ chainId, page, pageSize }: UseHoldersParams) => {
   const { data } = await axios.get<HoldersResponse>(`${API_BASE_URL}/api/holders`, {

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import type { TransfersResponse, Transfer } from '../../types/api';
+import { API_BASE_URL } from '../../utils/api';
 
 interface UseTransfersParams {
   chainId: number;
@@ -11,8 +12,6 @@ interface UseTransfersParams {
   block?: string;
   hash?: string;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 const fetchTransfers = async ({ chainId, page, pageSize, sort = 'desc', address, block, hash }: UseTransfersParams) => {
   const params: Record<string, string | number | boolean> = {
