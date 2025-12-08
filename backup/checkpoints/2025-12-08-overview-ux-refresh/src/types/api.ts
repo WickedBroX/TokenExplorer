@@ -177,7 +177,6 @@ export interface MarketOverview {
   selfReportedCirculatingSupply: number | null;
   totalSupply: number | null;
   maxSupply: number | null;
-  priceChange24hPercent?: number | null;
   athUsd?: number | null;
   athDate?: string | null;
   athChangePercent?: number | null;

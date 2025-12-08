@@ -228,7 +228,7 @@ export const TokenOverviewHeader: React.FC = () => {
 
   const volume24h = marketOverview?.volume24hUsd ?? null;
   const volumeChange24hPercent = marketOverview?.volumeChange24hPercent ?? null;
-  const volMcapRatio = marketOverview?.volMarketCapRatio ?? null;
+  const priceChange24h = marketOverview?.priceChange24hPercent ?? null;
 
   const transfersTotals = transfersData?.totals;
   const socialLinks = useMemo(
@@ -242,21 +242,28 @@ export const TokenOverviewHeader: React.FC = () => {
     [config.infoLinks]
   );
   const tokenAddress = config.tokenAddress;
+  const truncatedAddress =
+    tokenAddress && tokenAddress.length > 10
+      ? `${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-4)}`
+      : tokenAddress;
+  const tokenLabel = info?.tokenName || "Bazaars";
+  const tokenSymbol = info?.tokenSymbol || "BZR";
+
+  const displayCirculating = marketOverview?.circulatingSupply ?? circulatingSupply;
+  const displayMaxSupply = marketOverview?.maxSupply ?? 555555555;
+
+  const hasRange = athUsd !== null && atlUsd !== null && athUsd > atlUsd;
+  const priceRangePosition = hasRange
+    ? Math.max(0, Math.min(100, ((price - atlUsd) / (athUsd - atlUsd)) * 100))
+    : null;
 
   // Fix loading condition - should be OR not AND
   const isLoading = loadingInfo || loadingPrice || loadingMarket;
   const hasError = infoError || priceError || statsError || transfersError || marketError;
 
-  const metricCard =
-    "rounded-2xl border border-gray-200 p-5 bg-white shadow-sm flex flex-col gap-1.5";
-  const metricCardStyle = { fontSize: "12px", lineHeight: "16px" };
-  const labelText =
-    "font-normal tracking-[0px] text-gray-600 uppercase flex items-center gap-1";
-  const labelStyle = { fontSize: "12px", lineHeight: "16px" };
-  const valueText = "font-normal text-gray-900";
-  const valueStyle = { fontSize: "12px", lineHeight: "16px" };
-  const smallNoteText = "font-normal text-gray-500";
-  const smallNoteStyle = { fontSize: "12px", lineHeight: "16px" };
+  const softCard = "rounded-xl bg-white shadow-sm p-5";
+  const labelMuted = "text-[11px] uppercase tracking-wide text-gray-500 flex items-center gap-1";
+  const monoSmall = "font-mono text-sm transition-colors";
   const formatDate = (date: Date | null) =>
     date ? date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
 
@@ -284,262 +291,212 @@ export const TokenOverviewHeader: React.FC = () => {
   }
 
   return (
-    <div className="w-full mb-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT CARD: OVERVIEW (Price & Supply) */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-0 overflow-hidden">
-          <div className="border-b border-gray-100 px-6 py-4">
-            <h2 className="text-sm font-semibold text-gray-900">Overview</h2>
+    <div className="w-full mb-8 space-y-6">
+      {/* Hero header */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="text-xs uppercase text-gray-500">
+              {tokenLabel} ({tokenSymbol})
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-4xl font-bold text-gray-900 leading-tight">
+                {formatUsdValue(price)}
+              </h1>
+              <span
+                className={`text-xs px-2.5 py-1 rounded-full ${
+                  priceChange24h !== null
+                    ? priceChange24h >= 0
+                      ? "bg-green-50 text-green-700"
+                      : "bg-red-50 text-red-700"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {priceChange24h !== null
+                  ? `${priceChange24h >= 0 ? "▲" : "▼"} ${Math.abs(priceChange24h).toFixed(2)}% 24h`
+                  : "0.00% 24h"}
+              </span>
+              {marketOverview?.stale && (
+                <span className="text-xs px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
+                  Stale
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="p-6 grid gap-4 text-[12px] leading-[16px]">
-            {/* Standalone: BZR Price */}
-            <div className={metricCard} style={metricCardStyle}>
-              <div className={labelText} style={labelStyle}>BZR Price</div>
-              <div className="flex items-center gap-3">
-                <span className={valueText} style={valueStyle}>{formatUsdValue(price)}</span>
-                {marketOverview?.stale && (
-                  <span
-                    className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full"
-                    style={valueStyle}
+          <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 justify-start lg:justify-end">
+            <div className="flex items-center gap-2 flex-nowrap overflow-x-auto sm:overflow-visible sm:flex-wrap pr-1">
+              {socialLinks.map((link) => {
+                const iconKey = (link.icon || resolveSocialIconKey(link)) as SocialIconKey | "twitter";
+                const IconComponent = SOCIAL_ICONS[iconKey] || Globe;
+                return (
+                  <a
+                    key={link.name + link.url}
+                    href={normalizeSocialUrl(link.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-full bg-gray-50 text-gray-600 hover:text-blue-600 transition-all flex-shrink-0"
+                    title={normalizeSocialName(link.name)}
+                    aria-label={`Visit ${normalizeSocialName(link.name)}`}
                   >
-                    Stale
-                  </span>
-                )}
-              </div>
+                    <IconComponent className="w-4 h-4" />
+                  </a>
+                );
+              })}
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Row 1: Volume / Market Cap (24h) | Volume (24h) */}
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Volume / Market Cap (24h)
-                  <InfoPopover
-                    label="Volume to market cap ratio"
-                    content="24-hour volume divided by market cap. Higher ratios can indicate stronger turnover."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>{volMcapRatio !== null ? `${(volMcapRatio * 100).toFixed(4)}%` : "--"}</div>
-              </div>
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Volume (24h)
-                  <InfoPopover
-                    label="24h volume info"
-                    content="24-hour trading volume across tracked markets, as reported by CoinMarketCap."
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={valueText} style={valueStyle}>{volume24h !== null ? formatUsdValue(volume24h) : "--"}</span>
-                  {volumeChange24hPercent !== null && (
-                    <span
-                      className={`font-normal ${
-                        volumeChange24hPercent >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                      style={valueStyle}
-                    >
-                      {volumeChange24hPercent >= 0 ? "▲" : "▼"} {Math.abs(volumeChange24hPercent).toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Row 2: Market Cap | FDV */}
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Market Cap
-                  <InfoPopover
-                    label="Market cap info"
-                    content={
-                      "Market cap equals price multiplied by circulating supply. If marked stale, the value uses the last good fetch or a fallback source."
-                    }
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={valueText} style={valueStyle}>{formatUsdValue(marketCap)}</span>
-                </div>
-              </div>
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Fully-Diluted Value
-                  <InfoPopover
-                    label="FDV info"
-                    content="Fully diluted value (FDV) equals price multiplied by max supply. If max supply is unknown, FDV uses total supply."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>{fdv ? formatUsdValue(fdv) : "--"}</div>
-              </div>
-
-              {/* Row 3: All-time Low | All-time High */}
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>All-time Low</div>
-                <div className="flex items-center justify-between">
-                  <span className={valueText} style={valueStyle}>{atlUsd !== null ? formatUsdValue(atlUsd) : "--"}</span>
-                  {atlChange !== null && (
-                    <span className={`font-normal ${atlChange >= 0 ? "text-green-600" : "text-red-600"}`} style={valueStyle}>
-                      {atlChange > 0 ? "+" : ""}
-                      {atlChange.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-                <div className={smallNoteText} style={smallNoteStyle}>{atlDate ? `On ${formatDate(atlDate)}` : ""}</div>
-              </div>
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>All-time High</div>
-                <div className="flex items-center justify-between">
-                  <span className={valueText} style={valueStyle}>{athUsd !== null ? formatUsdValue(athUsd) : "--"}</span>
-                  {athChange !== null && (
-                    <span className={`font-normal ${athChange <= 0 ? "text-red-600" : "text-green-600"}`} style={valueStyle}>
-                      {athChange > 0 ? "+" : ""}
-                      {athChange.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-                <div className={smallNoteText} style={smallNoteStyle}>{athDate ? `On ${formatDate(athDate)}` : ""}</div>
-              </div>
-
-              {/* Row 4: Max Supply | Circulating Supply */}
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Max Supply
-                  <InfoPopover
-                    label="Max supply info"
-                    content="Best approximation of the maximum coins that will ever exist, minus any coins that have been verifiably burned (theoretical max minted minus burned)."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>
-                  {marketOverview?.maxSupply ? `${formatSupply(marketOverview.maxSupply)} BZR` : "555,555,555 BZR"}
-                </div>
-              </div>
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Circulating Supply
-                  <InfoPopover
-                    label="Circulating supply info"
-                    content="Total supply = total coins created minus any coins that have been burned. It is comparable to outstanding shares in the stock market."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>{formatSupply(circulatingSupply)} BZR</div>
-              </div>
-
-              {/* Row 5: Holders | Total Transfers */}
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Holders
-                  <InfoPopover
-                    label="Holders info"
-                    content="Number of wallet addresses holding Bazaars. The list of wallet addresses is derived from the contracts of each token and the list may not be exhaustive."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>{stats?.totalHolders?.toLocaleString("en-US") || "…"}</div>
-                <div
-                  className="text-gray-500 mt-1"
-                  style={{ fontSize: "12px", lineHeight: "16px", fontWeight: 400 }}
-                >
-                  Across supported chains
-                </div>
-              </div>
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Total Transfers
-                  <InfoPopover
-                    label="Total transfers info"
-                    content="Count of total token transfers."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>
-                  {transfersTotals?.allTimeTotal?.toLocaleString("en-US") || "..."}
-                </div>
-              </div>
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <a
+                href={`https://etherscan.io/address/${tokenAddress}`}
+                target="_blank"
+                rel="noreferrer"
+                className={`${monoSmall} inline-flex items-center gap-1 text-gray-700`}
+              >
+                {truncatedAddress || "N/A"}
+                <ExternalLink className="w-3 h-3 text-gray-400" />
+              </a>
+              <button
+                onClick={handleCopy}
+                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label={copied ? "Address copied" : "Copy address"}
+              >
+                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* RIGHT CARD: PROFILE SUMMARY */}
-        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm p-0 overflow-hidden flex flex-col">
-          <div className="border-b border-gray-100 px-6 py-4">
-            <h2 className="text-sm font-semibold text-gray-900">Information</h2>
+      {/* Metrics grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Financials */}
+        <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+          <div className={labelMuted}>
+            Market Cap
+            <InfoPopover
+              label="Market cap info"
+              content="Market cap equals price multiplied by circulating supply. If marked stale, the value uses the last good fetch or a fallback source."
+            />
           </div>
+          <div className="text-2xl font-bold text-gray-900 mt-2">{formatUsdValue(marketCap)}</div>
+        </div>
+        <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+          <div className={labelMuted}>
+            Volume (24h)
+            <InfoPopover
+              label="24h volume info"
+              content="24-hour trading volume across tracked markets, as reported by CoinMarketCap."
+            />
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-2xl font-bold text-gray-900">
+              {volume24h !== null ? formatUsdValue(volume24h) : "--"}
+            </span>
+            {volumeChange24hPercent !== null && (
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full ${
+                  volumeChange24hPercent >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                }`}
+              >
+                {volumeChange24hPercent >= 0 ? "▲" : "▼"} {Math.abs(volumeChange24hPercent).toFixed(2)}%
+              </span>
+            )}
+          </div>
+        </div>
+        <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+          <div className={labelMuted}>
+            Fully-Diluted Value
+            <InfoPopover
+              label="FDV info"
+              content="Fully diluted value (FDV) equals price multiplied by max supply. If max supply is unknown, FDV uses total supply."
+            />
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mt-2">{fdv ? formatUsdValue(fdv) : "--"}</div>
+        </div>
 
-          <div className="p-6 flex-1 space-y-6">
-            {/* Contract */}
-            <div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">
-                Contract
-              </div>
-              <div className="flex items-center gap-2 group min-w-0">
-                <a
-                  href={`https://etherscan.io/address/${tokenAddress}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-blue-600 font-mono truncate hover:text-blue-800 transition-colors flex-1 min-w-0"
-                >
-                  {tokenAddress}
-                </a>
-                <button
-                  onClick={handleCopy}
-                  className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-all flex-shrink-0"
-                  aria-label={copied ? "Address copied" : "Copy address"}
-                >
-                  {copied ? (
-                    <Check className="w-4 h-4 text-green-600" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
+        {/* Network */}
+        <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+          <div className={labelMuted}>
+            Holders
+            <InfoPopover
+              label="Holders info"
+              content="Number of wallet addresses holding Bazaars across supported chains."
+            />
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mt-2">{stats?.totalHolders?.toLocaleString("en-US") || "…"}</div>
+          <div className="text-xs text-gray-500 mt-1">Across supported chains</div>
+        </div>
+        <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+          <div className={labelMuted}>
+            Total Transfers
+            <InfoPopover
+              label="Total transfers info"
+              content="Count of total token transfers."
+            />
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mt-2">
+            {transfersTotals?.allTimeTotal?.toLocaleString("en-US") || "..."}
+          </div>
+        </div>
+        <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+          <div className="flex items-center justify-between">
+            <div className={labelMuted}>
+              Circulating Supply
+              <InfoPopover
+                label="Supply info"
+                content="Circulating supply shows how much is actively tradable. Max supply is the theoretical maximum minted minus burns."
+              />
             </div>
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mt-2">
+            {displayCirculating ? `${formatSupply(displayCirculating)} BZR` : "--"}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            Max {displayMaxSupply ? `${formatSupply(displayMaxSupply)} BZR` : "555,555,555 BZR"}
+          </div>
+        </div>
+      </div>
 
-            {/* Official Site */}
-            <div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">
-                Official Site
-              </div>
-              {(() => {
-                const websiteLink =
-                  socialLinks.find((link) => link.icon === "website") || socialLinks[0];
-                return (
-                  <a
-                    href={websiteLink?.url || "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
-                  >
-                    {websiteLink?.name || "Website"}
-                    <ExternalLink className="w-3 h-3 text-gray-400" />
-                  </a>
-                );
-              })()}
+      {/* ATH / ATL range */}
+      <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+        <div className="grid grid-cols-2 gap-4 items-start mb-4">
+          <div>
+            <div className={labelMuted}>All-time Low</div>
+            <div className="text-lg font-semibold text-gray-900">{atlUsd !== null ? formatUsdValue(atlUsd) : "--"}</div>
+            <div className="text-[11px] text-gray-500">
+              {atlDate ? `On ${formatDate(atlDate)}` : ""}
+              {atlChange !== null && (
+                <span className="ml-2 text-green-600">+{atlChange.toFixed(2)}%</span>
+              )}
             </div>
-
-            {/* Socials */}
-            <div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-3">
-                Social Profiles
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {socialLinks.map((link) => {
-                  const iconKey = (link.icon || resolveSocialIconKey(link)) as SocialIconKey | "twitter";
-                  const IconComponent = SOCIAL_ICONS[iconKey] || Globe;
-                  return (
-                    <a
-                      key={link.name + link.url}
-                      href={normalizeSocialUrl(link.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center gap-1"
-                      title={normalizeSocialName(link.name)}
-                      aria-label={`Visit ${normalizeSocialName(link.name)}`}
-                    >
-                      <IconComponent className="w-4 h-4" />
-                      <span className="text-xs font-medium">
-                        {normalizeSocialName(link.name)}
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
+          </div>
+          <div className="text-right flex flex-col items-end">
+            <div className={labelMuted}>All-time High</div>
+            <div className="text-lg font-semibold text-gray-900">{athUsd !== null ? formatUsdValue(athUsd) : "--"}</div>
+            <div className="text-[11px] text-gray-500">
+              {athDate ? `On ${formatDate(athDate)}` : ""}
+              {athChange !== null && (
+                <span className={`ml-2 ${athChange <= 0 ? "text-red-600" : "text-green-600"}`}>
+                  {athChange > 0 ? "+" : ""}
+                  {athChange.toFixed(2)}%
+                </span>
+              )}
             </div>
+          </div>
+        </div>
+        <div className="mt-2">
+          <div className="relative h-1 rounded-full bg-gradient-to-r from-red-200 via-amber-200 to-green-200">
+            {priceRangePosition !== null && (
+              <div
+                className="absolute top-1/2 -translate-y-1/2"
+                style={{ left: `${priceRangePosition}%` }}
+              >
+                <div className="w-3 h-3 rounded-full border-2 border-white shadow-sm bg-blue-500" />
+              </div>
+            )}
+          </div>
+          <div className="flex justify-between text-[11px] text-gray-500 mt-2">
+            <span>ATL</span>
+            <span>ATH</span>
           </div>
         </div>
       </div>
