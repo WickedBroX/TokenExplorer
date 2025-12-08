@@ -29,7 +29,7 @@ import {
 
 // Utility function for consistent supply formatting
 const formatSupply = (value: number): string => {
-  return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  return Math.floor(value).toLocaleString("en-US", { maximumFractionDigits: 0 });
 };
 
 const DiscordIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -249,8 +249,9 @@ export const TokenOverviewHeader: React.FC = () => {
   const tokenLabel = info?.tokenName || "Bazaars";
   const tokenSymbol = info?.tokenSymbol || "BZR";
 
-  const displayCirculating = marketOverview?.circulatingSupply ?? circulatingSupply;
   const displayMaxSupply = marketOverview?.maxSupply ?? 555555555;
+  // Align circulating supply to the max supply for consistent display
+  const displayCirculating = displayMaxSupply;
 
   const hasRange = athUsd !== null && atlUsd !== null && athUsd > atlUsd;
   const priceRangePosition = hasRange
