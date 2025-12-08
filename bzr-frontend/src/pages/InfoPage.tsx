@@ -41,7 +41,7 @@ export const InfoPage: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+      <div id="info-title" className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 scroll-mt-24">
         <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg text-blue-600">
           <Info className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>

@@ -59,7 +59,7 @@ export const HoldersPage: React.FC = () => {
           <Users className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Token Holders</h1>
+          <h1 id="holders-title" className="text-2xl font-bold text-gray-900 scroll-mt-24">Token Holders</h1>
           <p className="text-sm text-gray-500">
             Real-time list of BZR token holders across chains
           </p>

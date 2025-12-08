@@ -17,6 +17,7 @@ import { useAppConfig } from "../context/ConfigContext";
 import { DEFAULT_APP_CONFIG } from "../constants/index";
 import { resolveSocialIconKey, SOCIAL_ICON_OPTIONS, type SocialIconKey } from "../utils/social";
 import XLogoIcon from "../components/icons/XLogoIcon";
+const isChecksumAddress = (addr: string) => /^0x[a-fA-F0-9]{40}$/.test(addr);
 
 type SettingsPayload = {
   logoUrl: string;
@@ -38,6 +39,8 @@ type ApiKeysDisplay = {
   keys: string[];
   count: number;
   updatedAt?: string;
+  healthy?: boolean;
+  message?: string;
 };
 
 const DiscordIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -92,6 +95,14 @@ const SocialLinksEditor: React.FC<{
 
   const addLink = () => onChange([...links, { name: "", url: "", icon: "website" }]);
   const removeLink = (index: number) => onChange(links.filter((_, i) => i !== index));
+  const moveLink = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= links.length) return;
+    const next = [...links];
+    const [item] = next.splice(index, 1);
+    next.splice(target, 0, item);
+    onChange(next);
+  };
 
   return (
     <div className="space-y-4">
@@ -174,6 +185,24 @@ const SocialLinksEditor: React.FC<{
             >
               Remove
             </button>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => moveLink(index, -1)}
+                className="px-2 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs hover:bg-gray-100"
+                aria-label="Move link up"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => moveLink(index, 1)}
+                className="px-2 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs hover:bg-gray-100"
+                aria-label="Move link down"
+              >
+                ↓
+              </button>
+            </div>
           </div>
         </div>
       ))}
@@ -224,6 +253,27 @@ const FooterMenusEditor: React.FC<{
     onChange(next);
   };
 
+  const moveMenu = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= menus.length) return;
+    const next = [...menus];
+    const [item] = next.splice(index, 1);
+    next.splice(target, 0, item);
+    onChange(next);
+  };
+
+  const moveLink = (menuIndex: number, linkIndex: number, direction: -1 | 1) => {
+    const links = menus[menuIndex]?.links || [];
+    const target = linkIndex + direction;
+    if (target < 0 || target >= links.length) return;
+    const next = [...menus];
+    const newLinks = [...links];
+    const [item] = newLinks.splice(linkIndex, 1);
+    newLinks.splice(target, 0, item);
+    next[menuIndex] = { ...next[menuIndex], links: newLinks };
+    onChange(next);
+  };
+
   return (
     <div className="space-y-4">
       {menus.map((menu, menuIndex) => (
@@ -241,6 +291,24 @@ const FooterMenusEditor: React.FC<{
             >
               Remove section
             </button>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => moveMenu(menuIndex, -1)}
+                className="px-2 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs hover:bg-gray-100"
+                aria-label="Move section up"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => moveMenu(menuIndex, 1)}
+                className="px-2 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs hover:bg-gray-100"
+                aria-label="Move section down"
+              >
+                ↓
+              </button>
+            </div>
           </div>
           <div className="space-y-2">
             {menu.links.map((link, linkIndex) => (
@@ -265,6 +333,24 @@ const FooterMenusEditor: React.FC<{
                   >
                     Remove
                   </button>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveLink(menuIndex, linkIndex, -1)}
+                      className="px-2 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs hover:bg-gray-100"
+                      aria-label="Move link up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveLink(menuIndex, linkIndex, 1)}
+                      className="px-2 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs hover:bg-gray-100"
+                      aria-label="Move link down"
+                    >
+                      ↓
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -299,7 +385,7 @@ export const AdminPage: React.FC = () => {
         }))
       : [];
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
-  const [loginForm, setLoginForm] = useState({ username: "admin", password: "" });
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [settings, setSettings] = useState<SettingsPayload>({
     logoUrl: config.logoUrl || DEFAULT_APP_CONFIG.logoUrl,
     aboutText: config.aboutText || DEFAULT_APP_CONFIG.aboutText,
@@ -311,8 +397,11 @@ export const AdminPage: React.FC = () => {
   });
   const [apiKeys, setApiKeys] = useState<ApiKeysState>({});
   const [apiKeysDisplay, setApiKeysDisplay] = useState<ApiKeysDisplay[]>([]);
+  const [apiKeyStatus, setApiKeyStatus] = useState<Record<string, { ok: boolean; message?: string }>>({});
   const [status, setStatus] = useState<string | null>(null);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreStatus, setRestoreStatus] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -368,8 +457,49 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const testApiKey = async (provider: string) => {
+    setStatus(`Testing ${provider} key...`);
+    try {
+      const res = await fetch(`/api/admin/api-keys/${provider}/health`, { credentials: "include" });
+      const payload = await res.json().catch(() => ({}));
+      const ok = res.ok && payload?.ok !== false;
+      setApiKeyStatus((prev) => ({ ...prev, [provider]: { ok, message: payload?.message } }));
+      setStatus(ok ? `${provider} key looks good` : payload?.message || `Failed to validate ${provider} key`);
+    } catch (error: any) {
+      setApiKeyStatus((prev) => ({ ...prev, [provider]: { ok: false, message: error?.message || "Unknown error" } }));
+      setStatus(`Failed to validate ${provider} key`);
+    }
+  };
+
   const saveSettings = async () => {
     setStatus(null);
+
+    const errors: string[] = [];
+    if (!settings.tokenAddress || !isChecksumAddress(settings.tokenAddress)) {
+      errors.push("Token address is invalid. Please use a checksummed 0x address.");
+    }
+    const urlFields: Array<{ label: string; value: string }> = [];
+    settings.infoLinks.forEach((link) => urlFields.push({ label: `Info link "${link.name || "Unnamed"}"`, value: link.url }));
+    settings.footerSocialLinks.forEach((link) => urlFields.push({ label: `Footer social "${link.name || "Unnamed"}"`, value: link.url }));
+    settings.footerMenus.forEach((menu) =>
+      menu.links.forEach((link) => urlFields.push({ label: `Footer menu "${menu.title || "Untitled"}" link "${link.label || "Unnamed"}"`, value: link.url }))
+    );
+    urlFields.forEach((f) => {
+      try {
+        // Throws on invalid URLs
+        new URL(f.value);
+      } catch {
+        errors.push(`${f.label} has an invalid URL`);
+      }
+    });
+
+    if (errors.length) {
+      setValidationErrors(errors);
+      setStatus("Please fix the validation issues below");
+      return;
+    }
+
+    setValidationErrors([]);
     const res = await fetch("/api/admin/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -442,7 +572,11 @@ export const AdminPage: React.FC = () => {
       setStatus("Select a backup file first");
       return;
     }
+    if (!window.confirm("This will restore from backup and overwrite data. Proceed?")) {
+      return;
+    }
     setStatus("Restoring...");
+    setRestoreStatus("Upload started...");
     const form = new FormData();
     form.append("backup", restoreFile);
     const res = await fetch("/api/admin/restore", {
@@ -450,7 +584,14 @@ export const AdminPage: React.FC = () => {
       body: form,
       credentials: "include",
     });
-    setStatus(res.ok ? "Restore started/completed" : "Restore failed");
+    if (res.ok) {
+      setStatus("Restore started/completed");
+      setRestoreStatus("Restore request accepted. Monitor logs for completion.");
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      setStatus("Restore failed");
+      setRestoreStatus(payload?.message || "Restore failed");
+    }
   };
 
   const logout = async () => {
@@ -537,6 +678,11 @@ export const AdminPage: React.FC = () => {
             {status}
           </div>
         )}
+        {restoreStatus && (
+          <div className="bg-gray-50 border border-gray-200 text-gray-800 px-4 py-3 rounded-lg text-sm">
+            {restoreStatus}
+          </div>
+        )}
 
         {/* Settings */}
         <section className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-6">
@@ -586,6 +732,17 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
+          {validationErrors.length > 0 && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm mt-4">
+              <div className="font-semibold mb-1">Please fix these issues:</div>
+              <ul className="list-disc list-inside space-y-1">
+                {validationErrors.map((err, idx) => (
+                  <li key={idx}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
             <div className="md:col-span-1">
               <label className="text-sm text-gray-600 mb-2 block">Information Card Links</label>
@@ -616,6 +773,38 @@ export const AdminPage: React.FC = () => {
               onChange={(menus) => setSettings({ ...settings, footerMenus: menus })}
             />
           </div>
+
+          {/* Preview */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Preview: Information Card Links</h3>
+              <ul className="space-y-1 text-sm text-gray-800">
+                {settings.infoLinks.map((link, idx) => (
+                  <li key={`preview-info-${idx}`}>
+                    {link.name || "Untitled"} — {link.url || "https://"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Preview: Footer Menus</h3>
+              <div className="space-y-2 text-sm text-gray-800">
+                {settings.footerMenus.map((menu, idx) => (
+                  <div key={`preview-menu-${idx}`}>
+                    <div className="font-semibold">{menu.title || "Untitled"}</div>
+                    <ul className="ml-2 list-disc list-inside">
+                      {(menu.links || []).map((link, lIdx) => (
+                        <li key={`preview-menu-${idx}-link-${lIdx}`}>
+                          {link.label || "Untitled"} — {link.url || "https://"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 flex justify-end">
             <button
               onClick={saveSettings}
@@ -671,7 +860,7 @@ export const AdminPage: React.FC = () => {
                     placeholder={provider === "etherscan" ? "Comma-separated keys" : "API key"}
                     rows={provider === "etherscan" ? 2 : 1}
                   />
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => saveApiKey(provider)}
                       className="inline-flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors"
@@ -680,12 +869,28 @@ export const AdminPage: React.FC = () => {
                       Save {provider}
                     </button>
                     <button
+                      onClick={() => testApiKey(provider)}
+                      className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-2 rounded-lg text-sm hover:bg-blue-100 transition-colors"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                      Test
+                    </button>
+                    <button
                       onClick={() => removeApiKey(provider)}
                       className="inline-flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors"
                     >
                       Remove
                     </button>
                   </div>
+                  {apiKeyStatus[provider] && (
+                    <p
+                      className={`text-xs ${
+                        apiKeyStatus[provider].ok ? "text-green-700" : "text-red-600"
+                      }`}
+                    >
+                      {apiKeyStatus[provider].ok ? "Key is valid" : apiKeyStatus[provider].message || "Validation failed"}
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -726,6 +931,9 @@ export const AdminPage: React.FC = () => {
                 <Upload className="w-4 h-4" />
                 Restore backup
               </button>
+              {restoreStatus && (
+                <p className="text-xs text-gray-700">{restoreStatus}</p>
+              )}
             </div>
           </div>
         </section>

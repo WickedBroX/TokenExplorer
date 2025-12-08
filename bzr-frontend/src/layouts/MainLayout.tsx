@@ -35,6 +35,7 @@ const navItems = [
   { label: "Holders", path: "/holders" },
   { label: "Info & Contract", path: "/info" },
   { label: "Analytics", path: "/analytics" },
+  { label: "About BZR", path: "/about" },
 ];
 
 const DiscordIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -130,6 +131,35 @@ export const MainLayout: React.FC = () => {
     }
   };
 
+  const scrollTargets: Record<string, string> = {
+    "/": "transfers-title",
+    "/holders": "holders-title",
+    "/info": "info-title",
+    "/analytics": "analytics-title",
+    "/about": "about-title",
+  };
+
+  const handleNav = (path: string) => {
+    const scrollTo = scrollTargets[path];
+    const state = scrollTo ? { scrollTo } : undefined;
+    // Avoid scrolling on initial load to "/" by only setting state when explicitly navigating
+    navigate(path, { state });
+    setIsNavOpen(false);
+  };
+
+  React.useEffect(() => {
+    const scrollTo = (location.state as any)?.scrollTo;
+    if (!scrollTo) return;
+    setTimeout(() => {
+      const el = document.getElementById(scrollTo);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      // Clear scroll state so refresh doesn't retrigger scroll
+      navigate(location.pathname, { replace: true, state: null });
+    }, 50);
+  }, [location.state, location.pathname, navigate]);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
       {/* Header */}
@@ -139,7 +169,11 @@ export const MainLayout: React.FC = () => {
             {/* Logo */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate("/")}
+                onClick={() => {
+                  navigate("/");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  setIsNavOpen(false);
+                }}
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
               >
                 <img
@@ -184,7 +218,7 @@ export const MainLayout: React.FC = () => {
               {navItems.map((item) => (
                 <button
                   key={item.path}
-                  onClick={() => navigate(item.path)}
+                  onClick={() => handleNav(item.path)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     location.pathname === item.path
                       ? "bg-blue-50 text-blue-700"
@@ -237,10 +271,7 @@ export const MainLayout: React.FC = () => {
                 {navItems.map((item) => (
                   <button
                     key={item.path}
-                    onClick={() => {
-                      navigate(item.path);
-                      setIsNavOpen(false);
-                    }}
+                    onClick={() => handleNav(item.path)}
                     className={`px-4 py-2 text-left text-sm font-medium rounded-lg transition-colors ${
                       location.pathname === item.path
                         ? "bg-blue-50 text-blue-700"

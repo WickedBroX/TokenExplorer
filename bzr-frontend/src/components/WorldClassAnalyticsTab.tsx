@@ -114,7 +114,8 @@ export function WorldClassAnalyticsTab() {
           title="Avg. Transaction"
           value={`${
             metrics?.avgTransferSize.toLocaleString(undefined, {
-              maximumFractionDigits: 0,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 4,
             }) || "..."
           } BZR`}
           change={0}
