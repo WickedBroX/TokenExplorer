@@ -229,7 +229,6 @@ export const TokenOverviewHeader: React.FC = () => {
   const volume24h = marketOverview?.volume24hUsd ?? null;
   const volumeChange24hPercent = marketOverview?.volumeChange24hPercent ?? null;
   const volMcapRatio = marketOverview?.volMarketCapRatio ?? null;
-  const selfReportedSupply = marketOverview?.selfReportedCirculatingSupply ?? null;
 
   const transfersTotals = transfersData?.totals;
   const socialLinks = useMemo(
@@ -293,36 +292,35 @@ export const TokenOverviewHeader: React.FC = () => {
             <h2 className="text-sm font-semibold text-gray-900">Overview</h2>
           </div>
 
-          <div className="p-6 grid gap-5 text-[12px] leading-[16px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>BZR Price</div>
-                <div className="flex items-center gap-3">
-                  <span className={valueText} style={valueStyle}>{formatUsdValue(price)}</span>
-                  {marketOverview?.stale && (
-                    <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full" style={valueStyle}>
-                      Stale
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Market Cap
-                  <InfoPopover
-                    label="Market cap info"
-                    content={
-                      "Market cap equals price multiplied by circulating supply. If marked stale, the value uses the last good fetch or a fallback source."
-                    }
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={valueText} style={valueStyle}>{formatUsdValue(marketCap)}</span>
-                </div>
+          <div className="p-6 grid gap-4 text-[12px] leading-[16px]">
+            {/* Standalone: BZR Price */}
+            <div className={metricCard} style={metricCardStyle}>
+              <div className={labelText} style={labelStyle}>BZR Price</div>
+              <div className="flex items-center gap-3">
+                <span className={valueText} style={valueStyle}>{formatUsdValue(price)}</span>
+                {marketOverview?.stale && (
+                  <span
+                    className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full"
+                    style={valueStyle}
+                  >
+                    Stale
+                  </span>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Row 1: Volume / Market Cap (24h) | Volume (24h) */}
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Volume / Market Cap (24h)
+                  <InfoPopover
+                    label="Volume to market cap ratio"
+                    content="24-hour volume divided by market cap. Higher ratios can indicate stronger turnover."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>{volMcapRatio !== null ? `${(volMcapRatio * 100).toFixed(4)}%` : "--"}</div>
+              </div>
               <div className={metricCard} style={metricCardStyle}>
                 <div className={labelText} style={labelStyle}>
                   Volume (24h)
@@ -346,6 +344,21 @@ export const TokenOverviewHeader: React.FC = () => {
                 </div>
               </div>
 
+              {/* Row 2: Market Cap | FDV */}
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Market Cap
+                  <InfoPopover
+                    label="Market cap info"
+                    content={
+                      "Market cap equals price multiplied by circulating supply. If marked stale, the value uses the last good fetch or a fallback source."
+                    }
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={valueText} style={valueStyle}>{formatUsdValue(marketCap)}</span>
+                </div>
+              </div>
               <div className={metricCard} style={metricCardStyle}>
                 <div className={labelText} style={labelStyle}>
                   Fully-Diluted Value
@@ -357,17 +370,59 @@ export const TokenOverviewHeader: React.FC = () => {
                 <div className={valueText} style={valueStyle}>{fdv ? formatUsdValue(fdv) : "--"}</div>
               </div>
 
+              {/* Row 3: All-time Low | All-time High */}
               <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Volume / Market Cap (24h)
-                  <InfoPopover
-                    label="Volume to market cap ratio"
-                    content="24-hour volume divided by market cap. Higher ratios can indicate stronger turnover."
-                  />
+                <div className={labelText} style={labelStyle}>All-time Low</div>
+                <div className="flex items-center justify-between">
+                  <span className={valueText} style={valueStyle}>{atlUsd !== null ? formatUsdValue(atlUsd) : "--"}</span>
+                  {atlChange !== null && (
+                    <span className={`font-normal ${atlChange >= 0 ? "text-green-600" : "text-red-600"}`} style={valueStyle}>
+                      {atlChange > 0 ? "+" : ""}
+                      {atlChange.toFixed(2)}%
+                    </span>
+                  )}
                 </div>
-                <div className={valueText} style={valueStyle}>{volMcapRatio !== null ? `${(volMcapRatio * 100).toFixed(4)}%` : "--"}</div>
+                <div className={smallNoteText} style={smallNoteStyle}>{atlDate ? `On ${formatDate(atlDate)}` : ""}</div>
+              </div>
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>All-time High</div>
+                <div className="flex items-center justify-between">
+                  <span className={valueText} style={valueStyle}>{athUsd !== null ? formatUsdValue(athUsd) : "--"}</span>
+                  {athChange !== null && (
+                    <span className={`font-normal ${athChange <= 0 ? "text-red-600" : "text-green-600"}`} style={valueStyle}>
+                      {athChange > 0 ? "+" : ""}
+                      {athChange.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+                <div className={smallNoteText} style={smallNoteStyle}>{athDate ? `On ${formatDate(athDate)}` : ""}</div>
               </div>
 
+              {/* Row 4: Max Supply | Circulating Supply */}
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Max Supply
+                  <InfoPopover
+                    label="Max supply info"
+                    content="Best approximation of the maximum coins that will ever exist, minus any coins that have been verifiably burned (theoretical max minted minus burned)."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>
+                  {marketOverview?.maxSupply ? `${formatSupply(marketOverview.maxSupply)} BZR` : "555,555,555 BZR"}
+                </div>
+              </div>
+              <div className={metricCard} style={metricCardStyle}>
+                <div className={labelText} style={labelStyle}>
+                  Circulating Supply
+                  <InfoPopover
+                    label="Circulating supply info"
+                    content="Total supply = total coins created minus any coins that have been burned. It is comparable to outstanding shares in the stock market."
+                  />
+                </div>
+                <div className={valueText} style={valueStyle}>{formatSupply(circulatingSupply)} BZR</div>
+              </div>
+
+              {/* Row 5: Holders | Total Transfers */}
               <div className={metricCard} style={metricCardStyle}>
                 <div className={labelText} style={labelStyle}>
                   Holders
@@ -384,59 +439,6 @@ export const TokenOverviewHeader: React.FC = () => {
                   Across supported chains
                 </div>
               </div>
-
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>All-time High</div>
-                <div className="flex items-center justify-between">
-                  <span className={valueText} style={valueStyle}>{athUsd !== null ? formatUsdValue(athUsd) : "--"}</span>
-                  {athChange !== null && (
-                    <span className={`font-normal ${athChange <= 0 ? "text-red-600" : "text-green-600"}`} style={valueStyle}>
-                      {athChange > 0 ? "+" : ""}
-                      {athChange.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-                <div className={smallNoteText} style={smallNoteStyle}>{athDate ? `On ${formatDate(athDate)}` : ""}</div>
-              </div>
-
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>All-time Low</div>
-                <div className="flex items-center justify-between">
-                  <span className={valueText} style={valueStyle}>{atlUsd !== null ? formatUsdValue(atlUsd) : "--"}</span>
-                  {atlChange !== null && (
-                    <span className={`font-normal ${atlChange >= 0 ? "text-green-600" : "text-red-600"}`} style={valueStyle}>
-                      {atlChange > 0 ? "+" : ""}
-                      {atlChange.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-                <div className={smallNoteText} style={smallNoteStyle}>{atlDate ? `On ${formatDate(atlDate)}` : ""}</div>
-              </div>
-
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Circulating Supply
-                  <InfoPopover
-                    label="Circulating supply info"
-                    content="Total supply = total coins created minus any coins that have been burned. It is comparable to outstanding shares in the stock market."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>{formatSupply(totalSupply)} BZR</div>
-              </div>
-
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Max Supply
-                  <InfoPopover
-                    label="Max supply info"
-                    content="Best approximation of the maximum coins that will ever exist, minus any coins that have been verifiably burned (theoretical max minted minus burned)."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>
-                  {marketOverview?.maxSupply ? `${formatSupply(marketOverview.maxSupply)} BZR` : "555,555,555 BZR"}
-                </div>
-              </div>
-
               <div className={metricCard} style={metricCardStyle}>
                 <div className={labelText} style={labelStyle}>
                   Total Transfers
@@ -448,17 +450,6 @@ export const TokenOverviewHeader: React.FC = () => {
                 <div className={valueText} style={valueStyle}>
                   {transfersTotals?.allTimeTotal?.toLocaleString("en-US") || "..."}
                 </div>
-              </div>
-
-              <div className={metricCard} style={metricCardStyle}>
-                <div className={labelText} style={labelStyle}>
-                  Self-reported circulating supply
-                  <InfoPopover
-                    label="Self-reported circulating supply info"
-                    content="Self-reported circulating supply as reported to CoinMarketCap. Treat with caution if flagged."
-                  />
-                </div>
-                <div className={valueText} style={valueStyle}>{selfReportedSupply ? `${formatSupply(selfReportedSupply)} BZR` : "—"}</div>
               </div>
             </div>
           </div>
