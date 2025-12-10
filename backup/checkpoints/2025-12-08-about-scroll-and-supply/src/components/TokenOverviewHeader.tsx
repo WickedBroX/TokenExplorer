@@ -251,10 +251,7 @@ export const TokenOverviewHeader: React.FC = () => {
 
   const displayMaxSupply = marketOverview?.maxSupply ?? 555555555;
   const displayCirculating =
-    marketOverview?.selfReportedCirculatingSupply ??
-    marketOverview?.circulatingSupply ??
-    circulatingSupply ??
-    totalSupply;
+    marketOverview?.circulatingSupply ?? circulatingSupply ?? totalSupply;
 
   const hasRange = athUsd !== null && atlUsd !== null && athUsd > atlUsd;
   const priceRangePosition = hasRange
