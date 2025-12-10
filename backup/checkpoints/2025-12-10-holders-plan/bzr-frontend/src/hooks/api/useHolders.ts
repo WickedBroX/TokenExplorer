@@ -17,13 +17,11 @@ const fetchHolders = async ({ chainId, page, pageSize }: UseHoldersParams) => {
 };
 
 export const useHolders = (params: UseHoldersParams) => {
-  return useQuery<HoldersResponse, Error>({
-    queryKey: ['holders', params.chainId, params.page, params.pageSize],
+  return useQuery({
+    queryKey: ['holders', params],
     queryFn: () => fetchHolders(params),
-    staleTime: 60_000, // keep data warm for 1 minute
-    gcTime: 5 * 60_000, // retain cache for quick backfill when switching chains/pages
-    refetchOnMount: true,
-    refetchOnWindowFocus: false,
-    placeholderData: undefined,
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache old queries - immediately garbage collect when query becomes inactive
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 };

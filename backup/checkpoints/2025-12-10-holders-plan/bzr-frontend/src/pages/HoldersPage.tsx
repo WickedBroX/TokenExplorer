@@ -14,9 +14,7 @@ import {
 export const HoldersPage: React.FC = () => {
   const [chainId, setChainId] = useState(137); // Default to Polygon
   const [pageSize, setPageSize] = useState(10);
-  const [page, setPage] = useState(1);
   const [holderSearch, setHolderSearch] = useState("");
-  const [chainChanging, setChainChanging] = useState(false);
 
   const {
     data: holdersData,
@@ -25,7 +23,7 @@ export const HoldersPage: React.FC = () => {
     refetch: refreshHolders,
   } = useHolders({
     chainId,
-    page,
+    page: 1, // Always fetch page 1
     pageSize,
   });
 
@@ -37,43 +35,22 @@ export const HoldersPage: React.FC = () => {
     page: 1,
     pageSize: 1,
   });
-  const availableChains = [
-    { id: 0, name: "All Chains" },
-    ...(transfersData?.availableChains || [])
-      .filter((chain) => chain.id !== 0)
-      .sort((a, b) => {
-        // Show Polygon (137) first
-        if (a.id === 137) return -1;
-        if (b.id === 137) return 1;
-        return 0;
-      }),
-  ];
+  const availableChains = (transfersData?.availableChains || [])
+    .filter((chain) => chain.id !== 0)
+    .sort((a, b) => {
+      // Show Polygon (137) first
+      if (a.id === 137) return -1;
+      if (b.id === 137) return 1;
+      return 0;
+    });
 
-  const holders = chainChanging || loadingHolders ? [] : holdersData?.data || [];
+  const holders = holdersData?.data || [];
 
   // Load holders when the page mounts
   useEffect(() => {
     // React Query handles fetching automatically, but if we need manual refresh on mount:
     // refreshHolders();
   }, []);
-
-  // Reset pagination when chain changes
-  useEffect(() => {
-    setPage(1);
-    setChainChanging(true);
-  }, [chainId, pageSize]);
-
-  // Reset pagination when search changes to avoid empty pages after a narrow filter
-  useEffect(() => {
-    setPage(1);
-  }, [holderSearch]);
-
-  // Clear chain-changing flag once new data arrives
-  useEffect(() => {
-    if (!loadingHolders) {
-      setChainChanging(false);
-    }
-  }, [loadingHolders, holdersData]);
 
   return (
     <div>
@@ -90,12 +67,10 @@ export const HoldersPage: React.FC = () => {
       </div>
 
       <HoldersTab
-        holders={loadingHolders ? [] : holders}
+        holders={holders}
         holdersChainId={chainId}
-        holdersPage={page}
+        holdersPage={1}
         holdersPageSize={pageSize}
-        holdersPagination={holdersData?.pagination}
-        holdersSupply={holdersData?.supply}
         loadingHolders={loadingHolders}
         holdersError={holdersError ? { message: holdersError.message } : null}
         holderSearch={holderSearch}
@@ -103,7 +78,6 @@ export const HoldersPage: React.FC = () => {
         availableChains={availableChains}
         setHoldersChainId={setChainId}
         setHoldersPageSize={setPageSize}
-        setHoldersPage={setPage}
         setHolderSearch={setHolderSearch}
         refreshHolders={refreshHolders}
         exportHoldersToCSV={exportHoldersToCSV}

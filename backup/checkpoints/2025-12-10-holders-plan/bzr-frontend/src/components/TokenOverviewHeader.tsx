@@ -249,18 +249,12 @@ export const TokenOverviewHeader: React.FC = () => {
   const tokenLabel = info?.tokenName || "Bazaars";
   const tokenSymbol = info?.tokenSymbol || "BZR";
 
-  // Prefer on-chain/bundle info for supply; fall back to market overview if missing.
-  const displayMaxSupply =
-    info?.formattedTotalSupply && Number(info.formattedTotalSupply) > 0
-      ? Number(info.formattedTotalSupply)
-      : marketOverview?.maxSupply ?? 555555555;
+  const displayMaxSupply = marketOverview?.maxSupply ?? 555555555;
   const displayCirculating =
-    info?.formattedCirculatingSupply && Number(info.formattedCirculatingSupply) > 0
-      ? Number(info.formattedCirculatingSupply)
-      : marketOverview?.selfReportedCirculatingSupply ??
-        marketOverview?.circulatingSupply ??
-        circulatingSupply ??
-        totalSupply;
+    marketOverview?.selfReportedCirculatingSupply ??
+    marketOverview?.circulatingSupply ??
+    circulatingSupply ??
+    totalSupply;
 
   const hasRange = athUsd !== null && atlUsd !== null && athUsd > atlUsd;
   const priceRangePosition = hasRange

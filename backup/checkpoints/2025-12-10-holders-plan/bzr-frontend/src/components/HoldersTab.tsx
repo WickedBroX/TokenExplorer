@@ -7,18 +7,6 @@ interface HoldersTabProps {
   holdersChainId: number;
   holdersPage: number;
   holdersPageSize: number;
-  decimals?: number;
-  holdersPagination?: {
-    page?: number;
-    pageSize?: number;
-    resultCount?: number;
-    total?: number;
-    totalRaw?: number;
-    hasMore?: boolean;
-  } | null;
-  holdersSupply?: {
-    totalSupply: number | null;
-  } | null;
   loadingHolders: boolean;
   holdersError: Error | { message: string } | null;
   holderSearch: string;
@@ -26,10 +14,9 @@ interface HoldersTabProps {
   availableChains: Array<{ id: number; name: string }>;
   setHoldersChainId: (id: number) => void;
   setHoldersPageSize: (size: number) => void;
-  setHoldersPage: (page: number) => void;
   setHolderSearch: (search: string) => void;
   refreshHolders: () => void;
-  exportHoldersToCSV: (holders: Holder[], chainName: string, filename?: string, priceUsd?: number | null) => void;
+  exportHoldersToCSV: (holders: Holder[], chainName: string) => void;
   getExplorerUrl: (
     chainName: string,
     address: string,
@@ -39,23 +26,11 @@ interface HoldersTabProps {
   formatUsdValue: (value: number) => string;
 }
 
-const parseQuantity = (value: string) => {
-  if (!value) return 0;
-  const raw = value.trim();
-  if (raw.includes(".") && raw.includes(",")) {
-    // Assume '.' thousands, ',' decimal
-    return parseFloat(raw.replace(/\./g, "").replace(",", "."));
-  }
-  return parseFloat(raw.replace(/,/g, ""));
-};
-
 export const HoldersTab: React.FC<HoldersTabProps> = ({
   holders,
   holdersChainId,
   holdersPage,
   holdersPageSize,
-  holdersPagination,
-  holdersSupply,
   loadingHolders,
   holdersError,
   holderSearch,
@@ -63,10 +38,8 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
   availableChains,
   setHoldersChainId,
   setHoldersPageSize,
-  setHoldersPage,
   setHolderSearch,
   refreshHolders,
-  decimals = 18,
   exportHoldersToCSV,
   getExplorerUrl,
   truncateHash,
@@ -84,75 +57,17 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
     availableChains.find((c) => c.id === holdersChainId)?.name ||
     "Unknown Chain";
 
-  const totalSupply =
-    holdersSupply?.totalSupply && holdersSupply.totalSupply > 0
-      ? holdersSupply.totalSupply
-      : null;
+  // Filter client-side if search is active
+  const filteredHolders = holders.filter((holder) =>
+    holder.TokenHolderAddress.toLowerCase().includes(holderSearch.toLowerCase())
+  );
 
-  const hasMore =
-    typeof holdersPagination?.hasMore === "boolean"
-      ? holdersPagination.hasMore
-      : holders.length === holdersPageSize;
-
-  // Total pages are unknown from upstream; only show "of N" if explicitly provided.
-  const knownTotal =
-    holdersPagination && typeof holdersPagination.total === "number" && holdersPagination.total > 0
-      ? holdersPagination.total
-      : null;
-  const totalPages =
-    knownTotal && holdersPageSize
-      ? Math.max(1, Math.ceil(knownTotal / holdersPageSize))
-      : holdersPagination?.hasMore === false
-        ? holdersPage
-        : null;
-  const totalAvailable = knownTotal ?? (holdersPagination?.totalRaw ?? null);
-
-  // Enforce selected chain + search; memoized for perf (server supplies ordering)
-  const filteredHolders = React.useMemo(() => {
-    const chainFiltered = holders.filter(
-      (holder) => holdersChainId === 0 || holder.chainId === holdersChainId
-    );
-    return chainFiltered.filter((holder) =>
-      holder.TokenHolderAddress.toLowerCase().includes(holderSearch.toLowerCase())
-    );
-  }, [holders, holdersChainId, holderSearch]);
-
-  // Ensure descending balance order even after filtering/searching
-  const orderedHolders = React.useMemo(() => {
-    return [...filteredHolders].sort((a, b) => {
-      const balanceA = parseQuantity(a.TokenHolderQuantity || "0");
-      const balanceB = parseQuantity(b.TokenHolderQuantity || "0");
-      return balanceB - balanceA;
-    });
-  }, [filteredHolders]);
-
-  const decimalsFactor = Math.pow(10, decimals);
-
-  const holderMetrics = React.useMemo(() => {
-    return orderedHolders.map((holder, index) => {
-      const raw = parseQuantity(holder.TokenHolderQuantity);
-      const balance = Number.isFinite(raw) ? raw / decimalsFactor : 0;
-      const percent =
-        totalSupply && totalSupply > 0 ? (balance / totalSupply) * 100 : null;
-      const barWidth =
-        percent !== null ? Math.min(100, Math.max(0, percent)) : 0;
-      const valueUsd = tokenPrice?.priceUsd ? balance * tokenPrice.priceUsd : 0;
-      const rank = (holdersPage - 1) * holdersPageSize + index + 1;
-      const rankLabel = holderSearch ? `${rank} (filtered)` : `${rank}`;
-      return { holder, balance, percent, barWidth, valueUsd, rankLabel };
-    });
-  }, [orderedHolders, totalSupply, tokenPrice?.priceUsd, holdersPage, holdersPageSize, decimalsFactor, holderSearch]);
-
-  const pageLabel = totalPages ? `Page ${holdersPage} of ${totalPages}` : `Page ${holdersPage}${hasMore ? "+" : ""}`;
-  const showingStart = (holdersPage - 1) * holdersPageSize + 1;
-  const showingEnd = showingStart + holderMetrics.length - 1;
-  const displayCount = holderSearch ? holderMetrics.length : totalAvailable ?? holderMetrics.length;
-  const displayPlus = !holderSearch && !totalAvailable && hasMore ? "+" : "";
-
-  const formatPercent = (value: number | null) => {
-    if (value === null || Number.isNaN(value)) return "—";
-    return `${value >= 1 ? value.toFixed(2) : value.toFixed(4)}%`;
-  };
+  // Sort by balance (highest to lowest)
+  const sortedHolders = [...filteredHolders].sort((a, b) => {
+    const balanceA = parseFloat(a.TokenHolderQuantity);
+    const balanceB = parseFloat(b.TokenHolderQuantity);
+    return balanceB - balanceA;
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -169,7 +84,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                 placeholder="Filter by address..."
                 value={holderSearch}
                 onChange={(e) => setHolderSearch(e.target.value)}
-                aria-label="Filter holders by address"
                 className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -186,15 +100,14 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
             </select>
             <div className="hidden sm:flex items-center px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-600 whitespace-nowrap">
               <span className="font-medium text-gray-900 mr-1">
-                {displayCount}
-                {displayPlus}
+                {filteredHolders.length}
               </span>{" "}
               {holderSearch ? (
                 <span className="flex items-center gap-1">
                   <span>Filtered</span>
-                  {totalAvailable ? (
-                    <span className="text-gray-400">({totalAvailable} total)</span>
-                  ) : null}
+                  <span className="text-gray-400">
+                    ({holders.length} total)
+                  </span>
                 </span>
               ) : (
                 <span>Holders Loaded</span>
@@ -215,8 +128,7 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
               />
             </button>
             <button
-              onClick={() => exportHoldersToCSV(orderedHolders, chainName, undefined, tokenPrice?.priceUsd ?? null)}
-              aria-label="Export holders to CSV"
+              onClick={() => exportHoldersToCSV(sortedHolders, chainName)}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
             >
               <Download className="w-4 h-4" />
@@ -246,19 +158,25 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                   ? holdersError
                   : holdersError.message}
               </div>
-            ) : holderMetrics.length === 0 ? (
+            ) : sortedHolders.length === 0 ? (
               <div className="p-4 text-sm text-gray-500 text-center bg-white">
                 No holders found matching your criteria.
               </div>
             ) : (
-              holderMetrics.map(({ holder, balance, percent, barWidth, valueUsd, rankLabel }) => {
+              sortedHolders.map((holder, index) => {
+                const balance = parseFloat(holder.TokenHolderQuantity) / 1e18;
+                const valueUsd = tokenPrice?.priceUsd
+                  ? balance * tokenPrice.priceUsd
+                  : 0;
+                const rank = (holdersPage - 1) * holdersPageSize + index + 1;
+
                 return (
                   <div key={holder.TokenHolderAddress} className="p-3 bg-white">
                     <div className="flex items-start justify-between gap-2 min-w-0">
                       <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <div className="text-gray-500 font-mono text-xs flex-shrink-0">
-                            #{rankLabel}
+                            #{rank}
                           </div>
                           <a
                             href={getExplorerUrl(
@@ -276,7 +194,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                             onClick={() =>
                               handleCopyAddress(holder.TokenHolderAddress)
                             }
-                            aria-label={`Copy address ${holder.TokenHolderAddress}`}
                             className="p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
                           >
                             {copiedAddress === holder.TokenHolderAddress ? (
@@ -300,15 +217,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                         <div className="text-xs text-gray-600 whitespace-nowrap">
                           {formatUsdValue(valueUsd)}
                         </div>
-                        <div className="mt-1 text-xs text-gray-500 flex items-center justify-end gap-2">
-                          <span>{formatPercent(percent)}</span>
-                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-500 rounded-full"
-                              style={{ width: `${barWidth}%` }}
-                            />
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -328,9 +236,6 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                 <th className="px-3 sm:px-6 py-2 sm:py-3">Chain</th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-right">
                   Quantity
-                </th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-right">
-                  Percentage
                 </th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-right">Value</th>
               </tr>
@@ -366,7 +271,7 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                       : holdersError.message}
                   </td>
                 </tr>
-              ) : holderMetrics.length === 0 ? (
+              ) : sortedHolders.length === 0 ? (
                 <tr>
                   <td
                     colSpan={4}
@@ -376,70 +281,64 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
                   </td>
                 </tr>
               ) : (
-                holderMetrics.map(({ holder, balance, percent, barWidth, valueUsd, rankLabel }) => (
-                  <tr
-                    key={holder.TokenHolderAddress}
-                    className="hover:bg-gray-50 transition-colors group"
-                  >
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-500 font-mono text-xs sm:text-sm">
-                      {rankLabel}
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4">
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <a
-                          href={getExplorerUrl(
-                            holder.chainName || chainName,
-                            holder.TokenHolderAddress,
-                            "address"
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 font-mono hover:text-blue-800 hover:underline truncate max-w-[100px] xs:max-w-[150px] sm:max-w-[200px] text-xs sm:text-sm"
-                        >
-                          {truncateHash(holder.TokenHolderAddress)}
-                        </a>
-                        <button
-                          onClick={() =>
-                            handleCopyAddress(holder.TokenHolderAddress)
-                          }
-                          aria-label={`Copy address ${holder.TokenHolderAddress}`}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                        >
-                          {copiedAddress === holder.TokenHolderAddress ? (
-                            <Check className="w-3 h-3 text-green-500" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 text-xs sm:text-sm">
-                      {holder.chainName || chainName}
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-right font-medium text-gray-900 text-xs sm:text-sm whitespace-nowrap">
-                      {balance.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-right text-gray-600 text-xs sm:text-sm whitespace-nowrap">
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="font-medium text-gray-800">
-                          {formatPercent(percent)}
-                        </span>
-                        <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{ width: `${barWidth}%` }}
-                          />
+                sortedHolders.map((holder, index) => {
+                  const balance = parseFloat(holder.TokenHolderQuantity) / 1e18;
+                  const valueUsd = tokenPrice?.priceUsd
+                    ? balance * tokenPrice.priceUsd
+                    : 0;
+                  const rank = (holdersPage - 1) * holdersPageSize + index + 1;
+
+                  return (
+                    <tr
+                      key={holder.TokenHolderAddress}
+                      className="hover:bg-gray-50 transition-colors group"
+                    >
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-500 font-mono text-xs sm:text-sm">
+                        {rank}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <a
+                            href={getExplorerUrl(
+                              holder.chainName || chainName,
+                              holder.TokenHolderAddress,
+                              "address"
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 font-mono hover:text-blue-800 hover:underline truncate max-w-[100px] xs:max-w-[150px] sm:max-w-[200px] text-xs sm:text-sm"
+                          >
+                            {truncateHash(holder.TokenHolderAddress)}
+                          </a>
+                          <button
+                            onClick={() =>
+                              handleCopyAddress(holder.TokenHolderAddress)
+                            }
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                          >
+                            {copiedAddress === holder.TokenHolderAddress ? (
+                              <Check className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-right text-gray-600 text-xs sm:text-sm whitespace-nowrap">
-                      {formatUsdValue(valueUsd)}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 text-xs sm:text-sm">
+                        {holder.chainName || chainName}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right font-medium text-gray-900 text-xs sm:text-sm whitespace-nowrap">
+                        {balance.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right text-gray-600 text-xs sm:text-sm whitespace-nowrap">
+                        {formatUsdValue(valueUsd)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -457,33 +356,8 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-              <option value={500}>500</option>
             </select>
             <span className="text-xs sm:text-sm text-gray-600">per page</span>
-            <span className="text-xs sm:text-sm text-gray-500 ml-2">
-              {holderMetrics.length > 0
-                ? `Showing ${showingStart}-${showingEnd}`
-                : "No rows"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setHoldersPage(Math.max(1, holdersPage - 1))}
-              disabled={holdersPage <= 1 || loadingHolders}
-              className="px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-100 disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="text-xs sm:text-sm text-gray-700">{pageLabel}</span>
-            <button
-              onClick={() => setHoldersPage(holdersPage + 1)}
-              disabled={loadingHolders || !hasMore}
-              className="px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-100 disabled:opacity-50"
-            >
-              Next
-            </button>
           </div>
         </div>
       </div>

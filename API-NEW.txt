@@ -1,0 +1,116 @@
+🌵🌵 Multichain API for BZR 🌵🌵
+
+Max supply: 
+
+For Ethereum only: https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=eth
+
+For Optimism only:
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=op
+
+For avalanche only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=avax
+
+For bsc only:
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=bsc
+
+For zksync only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=zksync
+
+For base only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=base
+
+For cronos only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=cronos
+
+For arbitrum only:.
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=arb
+
+For mantle only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=mantle
+
+For Polygon only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/maxcoins?chains=pol
+
+🌵🌵 Multichain API for BZR 🌵🌵
+
+Total supply: 
+
+For Ethereum only: https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=eth
+
+For Optimism only:
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=op
+
+For avalanche only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=avax
+
+For bsc only:
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=bsc
+
+For zksync only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=zksync
+
+For base only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=base
+
+For cronos only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=cronos
+
+For arbitrum only:.
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=arb
+
+For mantle only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=mantle
+
+For Polygon only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/totalcoins?chains=pol
+
+🌵🌵 Multichain API for BZR 🌵🌵
+
+Circulating supply: 
+
+For Ethereum only: https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=eth
+
+For Optimism only:
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=op
+
+For avalanche only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=avax
+
+For bsc only:
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=bsc
+
+For zksync only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=zksync
+
+For base only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=base
+
+For cronos only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=cronos
+
+For arbitrum only:.
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=arb
+
+For mantle only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=mantle
+
+For Polygon only:
+
+https://bzr-bundle.info-exchangepro3617.workers.dev/circulating?chains=pol

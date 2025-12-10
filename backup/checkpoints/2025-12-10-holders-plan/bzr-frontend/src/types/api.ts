@@ -212,12 +212,6 @@ export interface HoldersResponse {
     page: number;
     pageSize: number;
     resultCount: number;
-    total?: number;
-    totalRaw?: number;
-    hasMore?: boolean;
-  };
-  supply?: {
-    totalSupply: number | null;
   };
   timestamp: number;
 }

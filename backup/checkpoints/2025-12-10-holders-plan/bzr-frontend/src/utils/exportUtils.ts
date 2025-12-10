@@ -267,19 +267,14 @@ export const exportTransfersToCSV = (transfers: Transfer[], filename: string = '
   URL.revokeObjectURL(url);
 };
 
-export const exportHoldersToCSV = (
-  holders: Holder[],
-  chainName: string,
-  filename?: string,
-  priceUsd?: number | null
-) => {
+export const exportHoldersToCSV = (holders: Holder[], chainName: string, filename?: string) => {
   if (holders.length === 0) return;
 
   const timestamp = new Date().toISOString().split('T')[0];
   const defaultFilename = `bzr-holders-${chainName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`;
 
   // CSV Headers
-  const headers = ['Rank', 'Address', 'Chain', 'Quantity (BZR)', 'Value (USD)'];
+  const headers = ['Rank', 'Address', 'Balance (BZR)', 'Percentage'];
 
   // Helper to escape CSV fields
   const escapeCSV = (value: string | number | undefined | null): string => {
@@ -291,19 +286,18 @@ export const exportHoldersToCSV = (
     return stringValue;
   };
 
+  const totalSupply = 100000000; // 100M BZR total supply
+
   // Convert holders to CSV rows
   const rows = holders.map((holder, index) => {
     const balance = parseFloat(holder.TokenHolderQuantity) / Math.pow(10, 18);
-    const chainLabel = holder.chainName || chainName || '';
-    const valueUsd =
-      priceUsd && Number.isFinite(priceUsd) ? (balance * priceUsd).toFixed(2) : '';
+    const percentage = (balance / totalSupply) * 100;
 
     return [
       index + 1,
       escapeCSV(holder.TokenHolderAddress),
-      escapeCSV(chainLabel),
       balance.toFixed(6),
-      valueUsd,
+      percentage.toFixed(4)
     ].join(',');
   });
 
