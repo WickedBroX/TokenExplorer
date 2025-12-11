@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Users } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useHolders } from "../hooks/api/useHolders";
 import { useTokenPrice } from "../hooks/api/useTokenPrice";
 import { useTransfers } from "../hooks/api/useTransfers";
@@ -18,6 +19,7 @@ export const HoldersPage: React.FC = () => {
   const [holderSearch, setHolderSearch] = useState("");
   const [chainChanging, setChainChanging] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const queryClient = useQueryClient();
 
   const {
     data: holdersData,
@@ -70,6 +72,17 @@ export const HoldersPage: React.FC = () => {
   useEffect(() => {
     setPage(1);
   }, [holderSearch]);
+
+  // Clear table immediately when paging to avoid showing stale rows (e.g., All Chains page changes)
+  useEffect(() => {
+    // Purge cached page data for this chain so we always fetch fresh for the new page
+    queryClient.removeQueries({
+      queryKey: ['holders', chainId],
+      exact: false,
+    });
+    setChainChanging(true);
+    setResetKey((k) => k + 1);
+  }, [page, chainId, queryClient]);
 
   // Clear chain-changing flag once new data arrives
   useEffect(() => {
