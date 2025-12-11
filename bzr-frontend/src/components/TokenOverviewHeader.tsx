@@ -176,6 +176,7 @@ export const TokenOverviewHeader: React.FC = () => {
   });
 
   const [copied, setCopied] = useState(false);
+  const [lastGoodCirculating, setLastGoodCirculating] = useState<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const { config } = useAppConfig();
 
@@ -261,12 +262,33 @@ export const TokenOverviewHeader: React.FC = () => {
       : null;
 
   const displayMaxSupply = infoTotal ?? marketOverview?.maxSupply ?? 555555555;
+
+  const rawCirculating = useMemo(() => {
+    const marketCirc =
+      (marketOverview?.circulatingSupply && marketOverview.circulatingSupply > 0
+        ? marketOverview.circulatingSupply
+        : null) ??
+      (marketOverview?.selfReportedCirculatingSupply && marketOverview.selfReportedCirculatingSupply > 0
+        ? marketOverview.selfReportedCirculatingSupply
+        : null);
+
+    if (marketCirc !== null) return marketCirc;
+    if (infoCirc && infoCirc > 0) return infoCirc;
+    if (circulatingSupply && circulatingSupply > 0) return circulatingSupply;
+    if (totalSupply && totalSupply > 0) return totalSupply;
+    return null;
+  }, [marketOverview?.circulatingSupply, marketOverview?.selfReportedCirculatingSupply, infoCirc, circulatingSupply, totalSupply]);
+
+  useEffect(() => {
+    if (rawCirculating !== null && rawCirculating > 0 && !marketOverview?.stale) {
+      setLastGoodCirculating(rawCirculating);
+    }
+  }, [rawCirculating, marketOverview?.stale]);
+
   const displayCirculating =
-    infoCirc ??
-    marketOverview?.selfReportedCirculatingSupply ??
-    marketOverview?.circulatingSupply ??
-    circulatingSupply ??
-    totalSupply;
+    marketOverview?.stale && lastGoodCirculating !== null
+      ? lastGoodCirculating
+      : rawCirculating;
 
   const low24h = marketOverview?.low24hUsd ?? null;
   const high24h = marketOverview?.high24hUsd ?? null;
@@ -426,8 +448,10 @@ export const TokenOverviewHeader: React.FC = () => {
           </div>
           <div className="text-2xl font-bold text-gray-900 mt-2">{fdv ? formatUsdValue(fdv) : "--"}</div>
         </div>
+      </div>
 
-        {/* Network */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Network + Supply */}
         <div className={`${softCard} bg-[#F8F9FA] border-none`}>
           <div className={labelMuted}>
             Holders
@@ -452,20 +476,29 @@ export const TokenOverviewHeader: React.FC = () => {
           </div>
         </div>
         <div className={`${softCard} bg-[#F8F9FA] border-none`}>
-            <div className="flex items-center justify-between">
-              <div className={labelMuted}>
-                Max Supply
-                <InfoPopover
-                  label="Supply info"
-                  content="Max supply is the theoretical maximum minted minus burns. Circulating supply shows how much is actively tradable."
-                />
-              </div>
+          <div className="flex items-center justify-between">
+            <div className={labelMuted}>
+              Max Supply
+              <InfoPopover
+                label="Supply info"
+                content="Max supply is the theoretical maximum minted minus burns."
+              />
             </div>
+          </div>
           <div className="text-2xl font-bold text-gray-900 mt-2">
             {displayMaxSupply ? `${formatSupply(displayMaxSupply)} BZR` : "--"}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            Circulating {displayCirculating ? `${formatSupply(displayCirculating)} BZR` : "..."}
+        </div>
+        <div className={`${softCard} bg-[#F8F9FA] border-none`}>
+          <div className={labelMuted}>
+            Circulating Supply
+            <InfoPopover
+              label="Circulating supply info"
+              content="Amount of BZR currently circulating across chains (last known good value when data is stale)."
+            />
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mt-2">
+            {displayCirculating ? `${formatSupply(displayCirculating)} BZR` : "--"}
           </div>
         </div>
       </div>

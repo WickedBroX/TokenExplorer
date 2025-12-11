@@ -74,13 +74,20 @@ export const getExplorerUrl = (chainName: string, hash: string, type: 'tx' | 'ad
 };
 
 export const formatUsdValue = (usdValue: number): string => {
-  if (usdValue >= 1000000) {
-    return `$${(usdValue / 1000000).toFixed(2)}M`;
-  } else if (usdValue >= 1000) {
-    return `$${(usdValue / 1000).toFixed(2)}K`;
-  } else if (usdValue >= 0.01) {
-    return `$${usdValue.toFixed(2)}`;
-  } else {
-    return `$${usdValue.toFixed(4)}`;
+  if (usdValue >= 1_000_000_000_000) {
+    return `$${(usdValue / 1_000_000_000_000).toFixed(2)}T`;
   }
+  if (usdValue >= 1_000_000_000) {
+    return `$${(usdValue / 1_000_000_000).toFixed(2)}B`;
+  }
+  if (usdValue >= 1_000_000) {
+    return `$${(usdValue / 1_000_000).toFixed(2)}M`;
+  }
+  if (usdValue >= 1_000) {
+    return `$${(usdValue / 1_000).toFixed(2)}K`;
+  }
+  if (usdValue >= 0.01) {
+    return `$${usdValue.toFixed(2)}`;
+  }
+  return `$${usdValue.toFixed(4)}`;
 };
