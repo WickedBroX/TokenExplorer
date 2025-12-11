@@ -175,7 +175,11 @@ export const HoldersTab: React.FC<HoldersTabProps> = ({
             </div>
             <select
               value={holdersChainId}
-              onChange={(e) => setHoldersChainId(Number(e.target.value))}
+              onChange={(e) => {
+                setHoldersChainId(Number(e.target.value));
+                setHolderSearch("");
+                setHoldersPage(1);
+              }}
               className="px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
             >
               {availableChains.map((c) => (

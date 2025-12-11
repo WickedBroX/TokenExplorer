@@ -27,6 +27,7 @@ export const HoldersPage: React.FC = () => {
     chainId,
     page,
     pageSize,
+    search: holderSearch || undefined,
   });
 
   const { data: tokenPrice } = useTokenPrice();
