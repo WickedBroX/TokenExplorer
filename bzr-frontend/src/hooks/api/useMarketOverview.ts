@@ -12,7 +12,7 @@ export const useMarketOverview = () => {
   return useQuery({
     queryKey: ['marketOverview'],
     queryFn: fetchMarketOverview,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 };

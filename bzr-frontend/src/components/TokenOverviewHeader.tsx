@@ -215,7 +215,6 @@ export const TokenOverviewHeader: React.FC = () => {
   const atlChange = marketOverview?.atlChangePercent ?? null;
   const athDate = marketOverview?.athDate ? new Date(marketOverview.athDate) : null;
   const atlDate = marketOverview?.atlDate ? new Date(marketOverview.atlDate) : null;
-
   const marketCap = useMemo(() => {
     if (marketOverview?.marketCapUsd) return marketOverview.marketCapUsd;
     return circulatingSupply * price;
@@ -246,26 +245,31 @@ export const TokenOverviewHeader: React.FC = () => {
     tokenAddress && tokenAddress.length > 10
       ? `${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-4)}`
       : tokenAddress;
-  const tokenLabel = info?.tokenName || "Bazaars";
-  const tokenSymbol = info?.tokenSymbol || "BZR";
+  const tokenLabel = (info as any)?.tokenName || "Bazaars";
+  const tokenSymbol = (info as any)?.tokenSymbol || "BZR";
 
   // Prefer on-chain/bundle info for supply; fall back to market overview if missing.
-  const displayMaxSupply =
-    info?.formattedTotalSupply && Number(info.formattedTotalSupply) > 0
-      ? Number(info.formattedTotalSupply)
-      : marketOverview?.maxSupply ?? 555555555;
-  const displayCirculating =
-    info?.formattedCirculatingSupply && Number(info.formattedCirculatingSupply) > 0
-      ? Number(info.formattedCirculatingSupply)
-      : marketOverview?.selfReportedCirculatingSupply ??
-        marketOverview?.circulatingSupply ??
-        circulatingSupply ??
-        totalSupply;
+  // Prefer authoritative /api/info values; only fall back to market data if missing.
+  const infoTotal =
+    (info as any)?.formattedTotalSupply && Number((info as any).formattedTotalSupply) > 0
+      ? Number((info as any).formattedTotalSupply)
+      : null;
+  const infoCirc =
+    (info as any)?.formattedCirculatingSupply &&
+    Number((info as any).formattedCirculatingSupply) > 0
+      ? Number((info as any).formattedCirculatingSupply)
+      : null;
 
-  const hasRange = athUsd !== null && atlUsd !== null && athUsd > atlUsd;
-  const priceRangePosition = hasRange
-    ? Math.max(0, Math.min(100, ((price - atlUsd) / (athUsd - atlUsd)) * 100))
-    : null;
+  const displayMaxSupply = infoTotal ?? marketOverview?.maxSupply ?? 555555555;
+  const displayCirculating =
+    infoCirc ??
+    marketOverview?.selfReportedCirculatingSupply ??
+    marketOverview?.circulatingSupply ??
+    circulatingSupply ??
+    totalSupply;
+
+  const low24h = marketOverview?.low24hUsd ?? null;
+  const high24h = marketOverview?.high24hUsd ?? null;
 
   // Fix loading condition - should be OR not AND
   const isLoading = loadingInfo || loadingPrice || loadingMarket;
@@ -466,47 +470,90 @@ export const TokenOverviewHeader: React.FC = () => {
         </div>
       </div>
 
-      {/* ATH / ATL range */}
-      <div className={`${softCard} bg-[#F8F9FA] border-none`}>
-        <div className="grid grid-cols-2 gap-4 items-start mb-4">
-          <div>
-            <div className={labelMuted}>All-time Low</div>
-            <div className="text-lg font-semibold text-gray-900">{atlUsd !== null ? formatUsdValue(atlUsd) : "--"}</div>
+      {/* ATH / ATL + 24h performance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className={`${softCard} bg-[#F8F9FA] border-none flex flex-col min-h-[220px] justify-between`}>
+          <div className="flex items-center justify-between">
+            <div className={labelMuted}>All-time Range</div>
             <div className="text-[11px] text-gray-500">
-              {atlDate ? `On ${formatDate(atlDate)}` : ""}
-              {atlChange !== null && (
-                <span className="ml-2 text-green-600">+{atlChange.toFixed(2)}%</span>
-              )}
+              {atlDate && athDate ? `${formatDate(atlDate)} - ${formatDate(athDate)}` : ""}
             </div>
           </div>
-          <div className="text-right flex flex-col items-end">
-            <div className={labelMuted}>All-time High</div>
-            <div className="text-lg font-semibold text-gray-900">{athUsd !== null ? formatUsdValue(athUsd) : "--"}</div>
-            <div className="text-[11px] text-gray-500">
-              {athDate ? `On ${formatDate(athDate)}` : ""}
-              {athChange !== null && (
-                <span className={`ml-2 ${athChange <= 0 ? "text-red-600" : "text-green-600"}`}>
-                  {athChange > 0 ? "+" : ""}
-                  {athChange.toFixed(2)}%
-                </span>
-              )}
+          <div className="flex items-start justify-between mt-3">
+            <div>
+              <div className="text-xs text-gray-500">Low</div>
+              <div className="text-base font-semibold text-gray-900 mt-0.5">
+                {atlUsd !== null ? formatUsdValue(atlUsd) : "--"}
+              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5 leading-tight">
+                {atlChange !== null && (
+                  <span
+                    className="text-green-600"
+                    style={{ fontSize: "11px", lineHeight: "14px" }}
+                  >
+                    +{atlChange.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-gray-500">High</div>
+              <div className="text-base font-semibold text-gray-900 mt-0.5">
+                {athUsd !== null ? formatUsdValue(athUsd) : "--"}
+              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5 leading-tight">
+                {athChange !== null && (
+                  <span
+                    className={athChange <= 0 ? "text-red-600" : "text-green-600"}
+                    style={{ fontSize: "11px", lineHeight: "14px" }}
+                  >
+                    {athChange > 0 ? "+" : ""}
+                    {athChange.toFixed(2)}%
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
-        <div className="mt-2">
-          <div className="relative h-1 rounded-full bg-gradient-to-r from-red-200 via-amber-200 to-green-200">
-            {priceRangePosition !== null && (
-              <div
-                className="absolute top-1/2 -translate-y-1/2"
-                style={{ left: `${priceRangePosition}%` }}
-              >
-                <div className="w-3 h-3 rounded-full border-2 border-white shadow-sm bg-blue-500" />
-              </div>
-            )}
+
+        <div className={`${softCard} bg-[#F8F9FA] border-none flex flex-col`}>
+          <div className="flex items-center justify-between">
+            <div className={labelMuted}>Price Performance</div>
+            <div className="text-[11px] text-gray-500">&nbsp;</div>
           </div>
-          <div className="flex justify-between text-[11px] text-gray-500 mt-2">
-            <span>ATL</span>
-            <span>ATH</span>
+          <div className="flex items-start justify-between mt-3">
+            <div>
+              <div className="text-xs text-gray-500">Low</div>
+              <div className="text-base font-semibold text-gray-900 mt-0.5">
+                {formatUsdValue(low24h || 0)}
+              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5 leading-tight">
+                {priceChange24h !== null && (
+                  <span
+                    className={priceChange24h >= 0 ? "text-green-600" : "text-red-600"}
+                    style={{ fontSize: "11px", lineHeight: "14px" }}
+                  >
+                    {priceChange24h >= 0 ? "+" : ""}
+                    {priceChange24h.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-gray-500">High</div>
+              <div className="text-base font-semibold text-gray-900 mt-0.5">
+                {formatUsdValue(high24h || 0)}
+              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5 leading-tight">
+                {/* Reserved to mirror spacing with the left card */}
+                {priceChange24h !== null ? (
+                  <span className="text-transparent select-none">
+                    {priceChange24h >= 0 ? "+" : ""}
+                    {priceChange24h.toFixed(2)}%
+                  </span>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </div>

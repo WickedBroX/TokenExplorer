@@ -7,6 +7,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Search,
 } from "lucide-react";
 import { useTransfers } from "../hooks/api/useTransfers";
 import { LoadingSpinner } from "../components";
@@ -277,16 +278,21 @@ export const TransfersPage: React.FC = () => {
             </label>
 
             <div className="flex-1 min-w-full sm:min-w-[250px]">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1); // Reset to first page on search
-                }}
-                placeholder="Search by address, block number, or tx hash..."
-                className="w-full rounded-md border-gray-300 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500 py-1 px-2"
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Search className="w-4 h-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1); // Reset to first page on search
+                  }}
+                  placeholder="Search by address, block number, or tx hash..."
+                  className="w-full rounded-lg border border-gray-300 bg-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 pl-9 pr-3 shadow-sm"
+                />
+              </div>
               {searchQuery && (
                 <div className="text-xs text-gray-500 mt-1">
                   {searchParams.hash && "🔍 Searching by transaction hash"}

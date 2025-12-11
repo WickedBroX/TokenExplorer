@@ -17,6 +17,7 @@ export const HoldersPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [holderSearch, setHolderSearch] = useState("");
   const [chainChanging, setChainChanging] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   const {
     data: holdersData,
@@ -62,6 +63,7 @@ export const HoldersPage: React.FC = () => {
   useEffect(() => {
     setPage(1);
     setChainChanging(true);
+    setResetKey((k) => k + 1); // explicit reset so table clears immediately on chain change
   }, [chainId, pageSize]);
 
   // Reset pagination when search changes to avoid empty pages after a narrow filter
@@ -91,6 +93,7 @@ export const HoldersPage: React.FC = () => {
       </div>
 
       <HoldersTab
+        key={resetKey}
         holders={loadingHolders ? [] : holders}
         holdersChainId={chainId}
         holdersPage={page}
