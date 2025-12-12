@@ -33,6 +33,7 @@ import type { Transfer } from "../types/api";
 const navItems = [
   { label: "Transfers", path: "/" },
   { label: "Holders", path: "/holders" },
+  { label: "DEX Trades", path: "/dex-trades" },
   { label: "Info & Contract", path: "/info" },
   { label: "Analytics", path: "/analytics" },
   { label: "About BZR", path: "/about" },
@@ -115,7 +116,7 @@ export const MainLayout: React.FC = () => {
       });
 
       if (result.searchType === "address" && result.found) {
-        navigate(`/?address=${query.trim()}`);
+        navigate(`/address/${query.trim()}`);
       } else if (result.searchType === "block" && result.found) {
         navigate(`/?block=${query.trim()}`);
       } else if (result.searchType === "transaction" && result.found) {
@@ -134,6 +135,7 @@ export const MainLayout: React.FC = () => {
   const scrollTargets: Record<string, string> = {
     "/": "transfers-title",
     "/holders": "holders-title",
+    "/dex-trades": "dex-trades-title",
     "/info": "info-title",
     "/analytics": "analytics-title",
     "/about": "about-title",

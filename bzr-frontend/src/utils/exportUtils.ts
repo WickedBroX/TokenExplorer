@@ -1,5 +1,5 @@
-import type { Transfer, Holder } from '../types/api';
-import { timeAgo } from './formatters';
+import type { Transfer, Holder, DexTrade } from '../types/api';
+import { timeAgo, formatValue, formatUsdValue } from './formatters';
 
 // Export utilities for analytics data
 
@@ -231,8 +231,8 @@ export const exportTransfersToCSV = (transfers: Transfer[], filename: string = '
   const rows = transfers.map(tx => {
     const value = parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal || 18);
     const gasPrice = tx.gasPrice ? (parseFloat(tx.gasPrice) / 1e9).toFixed(2) : '';
-    const timestampMs = parseInt(tx.timeStamp) * 1000;
-    const age = timeAgo(timestampMs.toString());
+    // `timeAgo` expects a unix timestamp in seconds (same unit as `tx.timeStamp`)
+    const age = timeAgo(tx.timeStamp);
     
     return [
       escapeCSV(tx.hash),
@@ -271,7 +271,8 @@ export const exportHoldersToCSV = (
   holders: Holder[],
   chainName: string,
   filename?: string,
-  priceUsd?: number | null
+  priceUsd?: number | null,
+  decimals: number = 18
 ) => {
   if (holders.length === 0) return;
 
@@ -291,9 +292,22 @@ export const exportHoldersToCSV = (
     return stringValue;
   };
 
+  const parseQuantity = (value: string) => {
+    if (!value) return 0;
+    const raw = value.trim();
+    if (raw.includes(".") && raw.includes(",")) {
+      // Assume '.' thousands, ',' decimal
+      return parseFloat(raw.replace(/\./g, "").replace(",", "."));
+    }
+    return parseFloat(raw.replace(/,/g, ""));
+  };
+
+  const decimalsFactor = Math.pow(10, decimals);
+
   // Convert holders to CSV rows
   const rows = holders.map((holder, index) => {
-    const balance = parseFloat(holder.TokenHolderQuantity) / Math.pow(10, 18);
+    const balance =
+      parseQuantity(holder.TokenHolderQuantity || "0") / decimalsFactor;
     const chainLabel = holder.chainName || chainName || '';
     const valueUsd =
       priceUsd && Number.isFinite(priceUsd) ? (balance * priceUsd).toFixed(2) : '';
@@ -311,6 +325,72 @@ export const exportHoldersToCSV = (
   const csvContent = [headers.join(','), ...rows].join('\n');
 
   // Create blob and download
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename || defaultFilename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+export const exportDexTradesToCSV = (
+  trades: DexTrade[],
+  chainName: string,
+  filename?: string
+) => {
+  if (trades.length === 0) return;
+
+  const timestamp = new Date().toISOString().split('T')[0];
+  const defaultFilename = `bzr-dex-trades-${chainName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`;
+
+  const headers = [
+    'Rank',
+    'Tx Hash',
+    'Timestamp',
+    'Trader',
+    'Side',
+    'Quantity (BZR)',
+    'Price (USD)',
+    'Value (USD)',
+    'Chain',
+    'Pool',
+  ];
+
+  const escapeCSV = (value: string | number | undefined | null): string => {
+    if (value === undefined || value === null) return '';
+    const stringValue = String(value);
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  const rows = trades.map((trade, index) => {
+    const qty = trade.amountBzrRaw ? formatValue(trade.amountBzrRaw, 18) : '0';
+    const price = trade.priceUsd != null ? trade.priceUsd.toFixed(6) : '';
+    const valueUsd = trade.valueUsd != null ? formatUsdValue(Number(trade.valueUsd)) : '';
+    const timeStamp = trade.timeStamp ? new Date(trade.timeStamp * 1000).toISOString() : '';
+    return [
+      index + 1,
+      escapeCSV(trade.txHash),
+      escapeCSV(timeStamp),
+      escapeCSV(trade.traderAddress || ''),
+      escapeCSV(trade.side || ''),
+      escapeCSV(qty),
+      escapeCSV(price),
+      escapeCSV(valueUsd),
+      escapeCSV(trade.chainId),
+      escapeCSV(trade.poolAddress),
+    ].join(',');
+  });
+
+  const csvContent = [headers.join(','), ...rows].join('\n');
+
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);

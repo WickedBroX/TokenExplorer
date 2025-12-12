@@ -35,6 +35,68 @@ export interface Transfer {
   logIndex?: string;
 }
 
+export interface InternalTransfer {
+  hash: string;
+  blockNumber: string;
+  timeStamp: string;
+  from: string;
+  to: string;
+  value: string;
+  contractAddress?: string;
+  input?: string;
+  type?: string;
+  isError?: string;
+  errCode?: string;
+  chainName: string;
+  chainId: number;
+}
+
+export interface InternalTransfersResponse {
+  data: InternalTransfer[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+    totalIsApproximate?: boolean;
+  };
+  chain: { id: number; name: string };
+  sort: 'asc' | 'desc';
+  timestamp: number | null;
+  stale?: boolean;
+  source?: string;
+  warnings?: Array<{ scope: string; code: string; message: string }>;
+  availableChains: Array<{ id: number; name: string }>;
+}
+
+export interface AddressBalance {
+  chainId: number;
+  chainName: string;
+  balanceRaw: string | null;
+  balance: number | null;
+  stale: boolean;
+  source: string;
+  error?: string;
+}
+
+export interface AddressActivitySummary {
+  transferCount: number | null;
+  chainCount: number | null;
+  recentTransfers: Transfer[];
+}
+
+export interface AddressDetailsResponse {
+  address: string;
+  tokenAddress: string;
+  balances: AddressBalance[];
+  totalBalance: number;
+  activity: AddressActivitySummary;
+  timestamp: number | null;
+  stale: boolean;
+  source: string;
+}
+
 export interface ChainStat {
   chainName: string;
   chainId: number;
@@ -195,6 +257,39 @@ export interface FinalityResponse {
   blockNumberHex: string | null;
   timestamp: number;
   source: string;
+}
+
+export interface DexTrade {
+  chainId: number;
+  poolAddress: string;
+  txHash: string;
+  logIndex: number;
+  blockNumber: number;
+  timeStamp: number;
+  traderAddress: string | null;
+  side: 'buy' | 'sell' | null;
+  amountBzrRaw: string | null;
+  amountQuoteRaw: string | null;
+  priceUsd: number | null;
+  valueUsd: number | null;
+  quoteSymbol: string | null;
+  payload: unknown;
+}
+
+export interface DexTradesResponse {
+  data: DexTrade[];
+  chain: { id: number; name: string };
+  pagination: {
+    page: number;
+    pageSize: number;
+    resultCount: number;
+    total: number;
+    hasMore: boolean;
+  };
+  timestamp: number | null;
+  stale?: boolean;
+  source?: string;
+  availableChains?: Array<{ id: number; name: string }>;
 }
 
 export interface Holder {

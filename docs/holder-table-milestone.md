@@ -18,6 +18,13 @@
 - [x] QA: chain switches (All Chains → single chain), pagination, search, loading/empty states.
 - [x] Deploy.
 
+### Frontend Polish (Dec 2025)
+- [x] Debounce holders search to avoid one‑request‑per‑keystroke.
+- [x] Make row keys unique in “All Chains” (address + chain) to prevent React duplication/re‑ranking bugs.
+- [x] Remove forced `removeQueries` / `resetKey` remounts; rely on react‑query cache + proper loading.
+- [x] Fix desktop holders table `colSpan` to 6 columns for empty/error rows.
+- [x] Align holders CSV export quantity/decimals parsing with UI so values match.
+
 ### Next Actions
 - [x] Apply DB migrations `009-create-holders-snapshot.sql` and `010-create-holders-views.sql`, then restart backend.
 - [ ] QA checklist:

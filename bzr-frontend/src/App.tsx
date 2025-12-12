@@ -19,6 +19,17 @@ const AdminPage = lazy(() =>
 const AboutPage = lazy(() =>
   import('./pages/AboutPage').then((m) => ({ default: m.AboutPage }))
 );
+const DexTradesPage = lazy(() =>
+  import('./pages/DexTradesPage').then((m) => ({ default: m.DexTradesPage }))
+);
+const InternalTransfersPage = lazy(() =>
+  import('./pages/InternalTransfersPage').then((m) => ({
+    default: m.InternalTransfersPage,
+  }))
+);
+const AddressPage = lazy(() =>
+  import('./pages/AddressPage').then((m) => ({ default: m.AddressPage }))
+);
 
 const RouteFallback = () => (
   <div className="p-6 text-center text-gray-500 text-sm">Loading…</div>
@@ -32,9 +43,12 @@ export default function App() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<TransfersPage />} />
           <Route path="holders" element={<HoldersPage />} />
+          <Route path="dex-trades" element={<DexTradesPage />} />
+          <Route path="internal" element={<InternalTransfersPage />} />
           <Route path="info" element={<InfoPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="about" element={<AboutPage />} />
+          <Route path="address/:address" element={<AddressPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
