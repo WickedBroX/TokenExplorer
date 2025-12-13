@@ -1,0 +1,3 @@
+root=/Users/wickedbro/Desktop/TokenExplorer
+head=14ea7880799538a3eef8110f09dee8edf0a42e8d
+date=2025-12-13T04:10:21Z

@@ -293,6 +293,71 @@ export interface DexTradesResponse {
   availableChains?: Array<{ id: number; name: string }>;
 }
 
+export interface CexMarket {
+  exchangeId: string;
+  symbol: string;
+  baseSymbol: string | null;
+  quoteSymbol: string | null;
+  active: boolean;
+  meta: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CexTrade {
+  exchangeId: string;
+  symbol: string;
+  tradeId: string;
+  timeStamp: number;
+  side: 'buy' | 'sell' | null;
+  price: number | null;
+  amountBase: number | null;
+  costQuote: number | null;
+  feeQuote: number | null;
+  payload: unknown;
+}
+
+export interface CexTradesResponse {
+  enabled: boolean;
+  data: CexTrade[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    resultCount: number;
+    total: number;
+    hasMore: boolean;
+  };
+  timestamp: number | null;
+  message?: string;
+}
+
+export interface CexMarketsResponse {
+  data: CexMarket[];
+  timestamp: number | null;
+}
+
+export interface CexDailyVolumeResponse {
+  enabled: boolean;
+  totals: {
+    volumeQuote24h: number | null;
+    trades24h: number | null;
+  };
+  series: Array<{
+    day: string;
+    exchangeId: string;
+    symbol: string;
+    volumeBase: number | null;
+    volumeQuote: number | null;
+    open: number | null;
+    high: number | null;
+    low: number | null;
+    close: number | null;
+    tradeCount: number | null;
+  }>;
+  timestamp: number | null;
+  message?: string;
+}
+
 export interface Holder {
   TokenHolderAddress: string;
   TokenHolderQuantity: string;

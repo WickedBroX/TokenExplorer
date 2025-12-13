@@ -1,0 +1,10 @@
+4.0K	restore-points/cex-ccxt-start-2025-12-13_111021/README.txt
+4.0K	restore-points/cex-ccxt-start-2025-12-13_111021/backend_ref.txt
+  0B	restore-points/cex-ccxt-start-2025-12-13_111021/backend_status.txt
+  0B	restore-points/cex-ccxt-start-2025-12-13_111021/backend_worktree.patch
+1.5M	restore-points/cex-ccxt-start-2025-12-13_111021/bzr-backend.tar.gz
+160K	restore-points/cex-ccxt-start-2025-12-13_111021/bzr-frontend.tar.gz
+  0B	restore-points/cex-ccxt-start-2025-12-13_111021/sizes.txt
+4.0K	restore-points/cex-ccxt-start-2025-12-13_111021/superproject_ref.txt
+4.0K	restore-points/cex-ccxt-start-2025-12-13_111021/superproject_status.txt
+  0B	restore-points/cex-ccxt-start-2025-12-13_111021/superproject_worktree.patch

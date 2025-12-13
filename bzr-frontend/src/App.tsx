@@ -22,6 +22,9 @@ const AboutPage = lazy(() =>
 const DexTradesPage = lazy(() =>
   import('./pages/DexTradesPage').then((m) => ({ default: m.DexTradesPage }))
 );
+const CexTradesPage = lazy(() =>
+  import('./pages/CexTradesPage').then((m) => ({ default: m.CexTradesPage }))
+);
 const InternalTransfersPage = lazy(() =>
   import('./pages/InternalTransfersPage').then((m) => ({
     default: m.InternalTransfersPage,
@@ -44,6 +47,7 @@ export default function App() {
           <Route index element={<TransfersPage />} />
           <Route path="holders" element={<HoldersPage />} />
           <Route path="dex-trades" element={<DexTradesPage />} />
+          <Route path="cex-trades" element={<CexTradesPage />} />
           <Route path="internal" element={<InternalTransfersPage />} />
           <Route path="info" element={<InfoPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
