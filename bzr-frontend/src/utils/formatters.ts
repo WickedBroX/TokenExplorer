@@ -73,6 +73,24 @@ export const getExplorerUrl = (chainName: string, hash: string, type: 'tx' | 'ad
   return explorerMap[chainName] || `https://etherscan.io/${type}/${hash}`;
 };
 
+export const getExplorerBlockUrl = (chainName: string, blockNumber: string | number): string => {
+  const block = String(blockNumber);
+  const explorerMap: Record<string, string> = {
+    'Ethereum': `https://etherscan.io/block/${block}`,
+    'Polygon': `https://polygonscan.com/block/${block}`,
+    'BSC': `https://bscscan.com/block/${block}`,
+    'Arbitrum': `https://arbiscan.io/block/${block}`,
+    'Optimism': `https://optimistic.etherscan.io/block/${block}`,
+    'Avalanche': `https://subnets.avax.network/c-chain/block/${block}`,
+    'Base': `https://basescan.org/block/${block}`,
+    'zkSync': `https://explorer.zksync.io/block/${block}`,
+    'Mantle': `https://mantlescan.xyz/block/${block}`,
+    'Cronos': `https://cronoscan.com/block/${block}`,
+  };
+
+  return explorerMap[chainName] || `https://etherscan.io/block/${block}`;
+};
+
 export const formatUsdValue = (usdValue: number): string => {
   if (usdValue >= 1_000_000_000_000) {
     return `$${(usdValue / 1_000_000_000_000).toFixed(2)}T`;

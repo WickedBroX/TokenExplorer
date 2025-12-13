@@ -349,14 +349,15 @@ export const exportDexTradesToCSV = (
   const defaultFilename = `bzr-dex-trades-${chainName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`;
 
   const headers = [
-    'Rank',
-    'Tx Hash',
-    'Timestamp',
-    'Trader',
-    'Side',
-    'Quantity (BZR)',
-    'Price (USD)',
-    'Value (USD)',
+    'Transaction Hash',
+    'Block',
+    'Age',
+    'Action',
+    'Token Amount (Out)',
+    'Token Amount (In)',
+    'Swapped Rate',
+    'Txn Value ($)',
+    'DEX',
     'Chain',
     'Pool',
   ];
@@ -370,20 +371,60 @@ export const exportDexTradesToCSV = (
     return stringValue;
   };
 
-  const rows = trades.map((trade, index) => {
-    const qty = trade.amountBzrRaw ? formatValue(trade.amountBzrRaw, 18) : '0';
-    const price = trade.priceUsd != null ? trade.priceUsd.toFixed(6) : '';
+  const normalizeSymbol = (value: string | null | undefined) =>
+    String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+
+  const getQuoteDecimals = (trade: DexTrade) => {
+    const symbol = normalizeSymbol(trade.quoteSymbol);
+    if (!symbol) return 18;
+    if (trade.chainId === 56 && symbol === 'usdt') return 18;
+    if (symbol === 'usdc' || symbol === 'usdt') return 6;
+    return 18;
+  };
+
+  const rows = trades.map((trade) => {
+    const quoteDecimals = getQuoteDecimals(trade);
+    const quoteSymbol = trade.quoteSymbol || '--';
+    const bzrAmount = trade.amountBzrRaw ? formatValue(trade.amountBzrRaw, 18) : '0';
+    const quoteAmount = trade.amountQuoteRaw ? formatValue(trade.amountQuoteRaw, quoteDecimals) : '0';
+
+    const tokenOut =
+      trade.side === 'sell'
+        ? `${bzrAmount} BZR`
+        : trade.side === 'buy'
+          ? `${quoteAmount} ${quoteSymbol}`
+          : '';
+    const tokenIn =
+      trade.side === 'sell'
+        ? `${quoteAmount} ${quoteSymbol}`
+        : trade.side === 'buy'
+          ? `${bzrAmount} BZR`
+          : '';
+
+    const bzrAmountNum = Number(bzrAmount);
+    const quoteAmountNum = Number(quoteAmount);
+    const swappedRate =
+      Number.isFinite(bzrAmountNum) && Number.isFinite(quoteAmountNum) && bzrAmountNum > 0
+        ? quoteAmountNum / bzrAmountNum
+        : null;
+
+    const swappedRateText = swappedRate !== null ? `${swappedRate.toFixed(8)} ${quoteSymbol}` : '';
     const valueUsd = trade.valueUsd != null ? formatUsdValue(Number(trade.valueUsd)) : '';
-    const timeStamp = trade.timeStamp ? new Date(trade.timeStamp * 1000).toISOString() : '';
+    const age = trade.timeStamp ? timeAgo(String(trade.timeStamp)) : '';
+    const action = trade.side === 'buy' ? 'Buy' : trade.side === 'sell' ? 'Sell' : '';
+    const block = trade.blockNumber != null ? Math.trunc(Number(trade.blockNumber)) : '';
     return [
-      index + 1,
       escapeCSV(trade.txHash),
-      escapeCSV(timeStamp),
-      escapeCSV(trade.traderAddress || ''),
-      escapeCSV(trade.side || ''),
-      escapeCSV(qty),
-      escapeCSV(price),
+      escapeCSV(block),
+      escapeCSV(age),
+      escapeCSV(action),
+      escapeCSV(tokenOut),
+      escapeCSV(tokenIn),
+      escapeCSV(swappedRateText),
       escapeCSV(valueUsd),
+      escapeCSV(trade.dexId || ''),
       escapeCSV(trade.chainId),
       escapeCSV(trade.poolAddress),
     ].join(',');

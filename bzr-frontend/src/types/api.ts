@@ -262,6 +262,7 @@ export interface FinalityResponse {
 export interface DexTrade {
   chainId: number;
   poolAddress: string;
+  dexId?: string | null;
   txHash: string;
   logIndex: number;
   blockNumber: number;
