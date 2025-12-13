@@ -37,6 +37,8 @@ const ExchangeIcon: React.FC<{ exchangeId: string; className?: string }> = ({
     role: 'img' as const,
     'aria-hidden': true,
     className,
+    width: 40,
+    height: 40,
   };
 
   const Label = ({ children }: { children: string }) => (
@@ -63,6 +65,15 @@ const ExchangeIcon: React.FC<{ exchangeId: string; className?: string }> = ({
     );
   }
 
+  if (id === 'bitmart') {
+    return (
+      <svg {...common}>
+        <rect x="2" y="2" width="36" height="36" rx="10" fill="#7C3AED" />
+        <Label>BM</Label>
+      </svg>
+    );
+  }
+
   if (id === 'kucoin') {
     return (
       <svg {...common}>
@@ -81,6 +92,15 @@ const ExchangeIcon: React.FC<{ exchangeId: string; className?: string }> = ({
     );
   }
 
+  if (id === 'coinstore') {
+    return (
+      <svg {...common}>
+        <rect x="2" y="2" width="36" height="36" rx="10" fill="#EF4444" />
+        <Label>CS</Label>
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <rect x="2" y="2" width="36" height="36" rx="10" fill="#6B7280" />
@@ -94,6 +114,17 @@ const formatNumber = (value: number | null | undefined, decimals = 6) => {
   if (!Number.isFinite(value)) return '--';
   return value.toLocaleString('en-US', { maximumFractionDigits: decimals });
 };
+
+const tradeRowKey = (trade: CexTrade) =>
+  [
+    trade.exchangeId,
+    trade.symbol,
+    trade.timeStamp ?? '',
+    trade.tradeId ?? '',
+    trade.side ?? '',
+    trade.price ?? '',
+    trade.amountBase ?? '',
+  ].join('|');
 
 export const CexTradesPage: React.FC = () => {
   const [exchangeId, setExchangeId] = useState<string>('all');
@@ -163,9 +194,9 @@ export const CexTradesPage: React.FC = () => {
     if (!q) return trades;
     return trades.filter((t) => {
       return (
-        (t.tradeId || '').toLowerCase().includes(q) ||
         (t.symbol || '').toLowerCase().includes(q) ||
-        (t.exchangeId || '').toLowerCase().includes(q)
+        (t.exchangeId || '').toLowerCase().includes(q) ||
+        (t.side || '').toLowerCase().includes(q)
       );
     });
   }, [trades, debouncedSearchQuery]);
@@ -186,7 +217,6 @@ export const CexTradesPage: React.FC = () => {
     const rows = visibleTrades.map((t) => ({
       exchange: t.exchangeId,
       symbol: t.symbol,
-      tradeId: t.tradeId,
       timeStamp: t.timeStamp ? new Date(t.timeStamp * 1000).toISOString() : '',
       side: t.side || '',
       price: t.price ?? '',
@@ -350,7 +380,7 @@ export const CexTradesPage: React.FC = () => {
             <div className="relative flex-1 min-w-[180px]">
               <input
                 type="text"
-                placeholder="Search by trade id / pair / exchange..."
+                placeholder="Search by pair / exchange / side..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-3 pr-3 text-xs sm:text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -387,13 +417,10 @@ export const CexTradesPage: React.FC = () => {
                   const age = t.timeStamp ? timeAgo(String(t.timeStamp)) : '--';
                   const quote = getQuoteFromPair(t.symbol) || '';
                   return (
-                    <div key={`${t.exchangeId}-${t.symbol}-${t.tradeId}`} className="p-3">
+                    <div key={tradeRowKey(t)} className="p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-xs text-gray-500">{age}</div>
-                          <div className="mt-1 font-mono text-sm text-gray-900 truncate">
-                            {t.tradeId}
-                          </div>
                           <div className="mt-1 flex items-center gap-2">
                             {t.side ? (
                               <span
@@ -406,7 +433,7 @@ export const CexTradesPage: React.FC = () => {
                                 {t.side === 'buy' ? 'Buy' : 'Sell'}
                               </span>
                             ) : null}
-                            <span className="text-xs text-gray-500">{t.symbol}</span>
+                            <span className="font-mono text-sm text-gray-900 truncate">{t.symbol}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -458,7 +485,6 @@ export const CexTradesPage: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                   <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                     <tr>
-                      <th className="px-4 py-3 text-left">Trade ID</th>
                       <th className="px-4 py-3 text-left">Age</th>
                       <th className="px-4 py-3 text-left">Side</th>
                       <th className="px-4 py-3 text-right">Price</th>
@@ -474,8 +500,7 @@ export const CexTradesPage: React.FC = () => {
                       const quote = getQuoteFromPair(t.symbol) || '';
                       const base = t.symbol.split('/')[0] || '';
                       return (
-                        <tr key={`${t.exchangeId}-${t.symbol}-${t.tradeId}`}>
-                          <td className="px-4 py-3 font-mono text-gray-900">{t.tradeId}</td>
+                        <tr key={tradeRowKey(t)}>
                           <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{age}</td>
                           <td className="px-4 py-3">
                             {t.side ? (

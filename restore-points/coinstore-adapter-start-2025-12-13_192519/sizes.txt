@@ -1,0 +1,6 @@
+4.0K	restore-points/coinstore-adapter-start-2025-12-13_192519/README.txt
+1.6M	restore-points/coinstore-adapter-start-2025-12-13_192519/bzr-backend.tar.gz
+164K	restore-points/coinstore-adapter-start-2025-12-13_192519/bzr-frontend.tar.gz
+4.0K	restore-points/coinstore-adapter-start-2025-12-13_192519/superproject_ref.txt
+4.0K	restore-points/coinstore-adapter-start-2025-12-13_192519/superproject_status.txt
+8.0K	restore-points/coinstore-adapter-start-2025-12-13_192519/superproject_worktree.patch

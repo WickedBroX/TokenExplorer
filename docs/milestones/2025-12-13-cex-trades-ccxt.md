@@ -52,3 +52,26 @@
 Suggested env:
 - `CEX_EXCHANGES=mexc`
 - `CEX_MARKETS=mexc:BZR/USDT`
+
+## Additional Exchanges
+- **BitMart:** CCXT supports it and lists `BZR/USDT` (`bitmart:BZR/USDT`).
+- **Coinstore:** Not supported by CCXT (no `ccxt['coinstore']`). Implement via a **custom adapter** using Coinstore public market endpoints (no API key required for public trades).
+
+---
+
+# Update: Coinstore Adapter (Non-CCXT)
+
+**Restore point:** `restore-points/coinstore-adapter-start-2025-12-13_192519/`  
+**Goal:** Add `coinstore:BZR/USDT` ingestion and UI icon without impacting existing CCXT exchanges.
+
+## Technical Approach
+- Backend: add `bzr-backend/src/cexAdapters/coinstore.js` and route `exchangeId=coinstore` through it in `bzr-backend/src/cexIngestion.js`.
+- Data source (public):
+  - Tickers: `GET https://api.coinstore.com/api/v1/market/tickers`
+  - Trades: `GET https://api.coinstore.com/api/v1/market/trade/BZRUSDT`
+- No private endpoints or API keys required for “recent trades” + 24h totals.
+
+## Tracker
+- [ ] Enable Coinstore in production env (`CEX_EXCHANGES+=coinstore`, `CEX_MARKETS+=coinstore:BZR/USDT`)
+- [ ] Verify ingestion inserts rows (`cex_trades`) and UI renders them
+- [ ] Confirm rate-limit/backoff behavior under polling
